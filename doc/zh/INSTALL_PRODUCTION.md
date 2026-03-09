@@ -21,7 +21,7 @@
 1. 打包项目（排除 `__pycache__`、`.pyc`）
 2. 通过 SCP 上传到服务器
 3. 在服务器上创建 Python 虚拟环境
-4. 在虚拟环境中安装 Claw-Vault
+4. 在虚拟环境中安装 ClawVault
 
 ## 首次配置（在服务器上）
 
@@ -61,7 +61,7 @@ dashboard:
 ## 启动 / 停止
 
 ```bash
-./scripts/start.sh         # 后台启动 Claw-Vault
+./scripts/start.sh         # 后台启动 ClawVault
 ./scripts/stop.sh          # 停止所有服务
 ```
 
@@ -110,7 +110,7 @@ ssh -L 8766:localhost:8766 root@<服务器IP>
 | 脚本 | 说明 |
 |------|------|
 | `scripts/deploy.sh <ip> [user]` | 打包、上传、安装到服务器 |
-| `scripts/start.sh` | 启动 Claw-Vault（加 `--with-openclaw` 同时启动 OpenClaw） |
+| `scripts/start.sh` | 启动 ClawVault（加 `--with-openclaw` 同时启动 OpenClaw） |
 | `scripts/stop.sh` | 停止所有服务 |
 | `scripts/test.sh` | 运行 CLI + API 测试 |
 | `scripts/setup.sh` | 配置 OpenClaw 代理集成 |

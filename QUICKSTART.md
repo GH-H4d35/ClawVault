@@ -1,4 +1,4 @@
-# Claw-Vault Quick Start
+# ClawVault Quick Start
 
 **[English](./QUICKSTART.md)** | **[中文](./QUICKSTART.zh-CN.md)**
 
@@ -23,8 +23,8 @@ source venv/bin/activate
 ## 3. Start
 
 ```bash
-./scripts/start.sh                  # Start Claw-Vault only
-./scripts/start.sh --with-openclaw  # Start Claw-Vault + OpenClaw
+./scripts/start.sh                  # Start ClawVault only
+./scripts/start.sh --with-openclaw  # Start ClawVault + OpenClaw
 ```
 
 Services:

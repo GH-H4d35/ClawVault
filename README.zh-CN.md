@@ -1,4 +1,4 @@
-# Claw-Vault
+# ClawVault
 
 **[English](./README.md)** | **[中文](./README.zh-CN.md)**
 
@@ -7,9 +7,9 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## 什么是 Claw-Vault？
+## 什么是 ClawVault？
 
-Claw-Vault 是一个开源的 **AI 工作流安全保险箱**，用于保护你的 AI 工具、凭证和交互过程：
+ClawVault 是一个开源的 **AI 工作流安全保险箱**，用于保护你的 AI 工具、凭证和交互过程：
 
 - **敏感数据检测** — API 密钥、密码、PII、信用卡等 15+ 种模式
 - **提示词注入防御** — 拦截角色劫持、指令覆盖、数据窃取
@@ -52,7 +52,7 @@ claw-vault demo
 | 脚本 | 用途 |
 |------|------|
 | `scripts/deploy.sh <ip> [user]` | 部署到云服务器 |
-| `scripts/start.sh` | 启动 Claw-Vault（加 `--with-openclaw` 同时启动 OpenClaw） |
+| `scripts/start.sh` | 启动 ClawVault（加 `--with-openclaw` 同时启动 OpenClaw） |
 | `scripts/stop.sh` | 停止所有服务 |
 | `scripts/test.sh` | 运行 CLI + API 测试 |
 | `scripts/setup.sh` | 配置 OpenClaw 代理集成 |
@@ -65,7 +65,7 @@ AI 工具 / OpenClaw
        │
        ▼
 ┌─────────────────────────────────┐
-│    Claw-Vault（安全保险箱）      │
+│    ClawVault（安全保险箱）      │
 ├─────────────────────────────────┤
 │ 网关模块                         │
 │  • 透明代理  :8765               │
@@ -107,7 +107,7 @@ monitor:
 ## 开发
 
 ```bash
-git clone https://github.com/spai-lab/claw-vault.git
+git clone https://github.com/tophant-ai/claw-vault.git
 cd claw-vault
 python3 -m venv venv && source venv/bin/activate
 pip install -e ".[dev]"

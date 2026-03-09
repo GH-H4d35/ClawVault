@@ -1,8 +1,8 @@
-# Claw-Vault 安全模式说明
+# ClawVault 安全模式说明
 
 > [English](../GUARD_MODE.md)
 
-Claw-Vault 提供三种安全模式，可在仪表盘 Config 页面（`:8766`）实时切换，切换后立即生效。
+ClawVault 提供三种安全模式，可在仪表盘 Config 页面（`:8766`）实时切换，切换后立即生效。
 
 ## 模式说明
 
@@ -46,7 +46,7 @@ Claw-Vault 提供三种安全模式，可在仪表盘 Config 页面（`:8766`）
 ```json
 {
   "error": {
-    "message": "[Claw-Vault] Strict mode: threat blocked\n\nDetected:\n  - AWS Access Key ID: AKIA***MPLE",
+    "message": "[ClawVault] Strict mode: threat blocked\n\nDetected:\n  - AWS Access Key ID: AKIA***MPLE",
     "type": "claw_vault_block",
     "code": "content_blocked"
   }
@@ -62,7 +62,7 @@ Claw-Vault 提供三种安全模式，可在仪表盘 Config 页面（`:8766`）
   "choices": [{
     "message": {
       "role": "assistant",
-      "content": "[Claw-Vault] 检测到敏感数据:\n  - AWS Access Key ID: AKIA***MPLE\n\n请修改您的消息后重新发送。"
+      "content": "[ClawVault] 检测到敏感数据:\n  - AWS Access Key ID: AKIA***MPLE\n\n请修改您的消息后重新发送。"
     }
   }]
 }
@@ -70,7 +70,7 @@ Claw-Vault 提供三种安全模式，可在仪表盘 Config 页面（`:8766`）
 
 ## 会话连续性
 
-当某条消息被拦截后，后续请求会自动移除该消息及对应的 Claw-Vault 错误响应，保证会话可以继续进行。
+当某条消息被拦截后，后续请求会自动移除该消息及对应的 ClawVault 错误响应，保证会话可以继续进行。
 
 ## 配置方式
 

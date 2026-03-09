@@ -1,10 +1,10 @@
 #!/bin/bash
-# Stop Claw-Vault services and remove proxy from OpenClaw
+# Stop ClawVault services and remove proxy from OpenClaw
 # Usage: ./scripts/stop.sh
 
 SERVICE_FILE="$HOME/.config/systemd/user/openclaw-gateway.service"
 
-echo "🛑 Stopping Claw-Vault"
+echo "🛑 Stopping ClawVault"
 echo "========================"
 
 # 1. Stop claw-vault
@@ -14,9 +14,9 @@ if [ -n "$PIDS" ]; then
     sleep 2
     # Force kill if still running
     pgrep -f "claw-vault start" > /dev/null 2>&1 && kill -9 $(pgrep -f "claw-vault start") 2>/dev/null
-    echo "✓ Claw-Vault stopped"
+    echo "✓ ClawVault stopped"
 else
-    echo "✓ Claw-Vault not running"
+    echo "✓ ClawVault not running"
 fi
 
 # 2. Stop gost (SOCKS5 proxy) if running

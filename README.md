@@ -1,4 +1,4 @@
-# Claw-Vault
+# ClawVault
 
 **[English](./README.md)** | **[中文](./README.zh-CN.md)**
 
@@ -7,9 +7,9 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## What is Claw-Vault?
+## What is ClawVault?
 
-Claw-Vault is an open-source **security vault for AI workflows** that protects your AI tools, credentials, and interactions:
+ClawVault is an open-source **security vault for AI workflows** that protects your AI tools, credentials, and interactions:
 
 - **Sensitive Data Detection** — API keys, passwords, PII, credit cards, and 15+ pattern types
 - **Prompt Injection Defense** — Block role hijacking, instruction override, data exfiltration
@@ -52,7 +52,7 @@ claw-vault demo
 | Script | Usage |
 |--------|-------|
 | `scripts/deploy.sh <ip> [user]` | Deploy to cloud server |
-| `scripts/start.sh` | Start Claw-Vault (add `--with-openclaw` to also start OpenClaw) |
+| `scripts/start.sh` | Start ClawVault (add `--with-openclaw` to also start OpenClaw) |
 | `scripts/stop.sh` | Stop all services |
 | `scripts/test.sh` | Run CLI + API tests |
 | `scripts/setup.sh` | Setup OpenClaw proxy integration |
@@ -65,7 +65,7 @@ AI Tools / OpenClaw
        │
        ▼
 ┌─────────────────────────────────┐
-│      Claw-Vault (Security)      │
+│      ClawVault (Security)      │
 ├─────────────────────────────────┤
 │ Gateway Module                  │
 │  • Transparent Proxy  :8765     │
@@ -107,7 +107,7 @@ monitor:
 ## Development
 
 ```bash
-git clone https://github.com/spai-lab/claw-vault.git
+git clone https://github.com/tophant-ai/claw-vault.git
 cd claw-vault
 python3 -m venv venv && source venv/bin/activate
 pip install -e ".[dev]"

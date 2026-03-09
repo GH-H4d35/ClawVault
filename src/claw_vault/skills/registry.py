@@ -12,7 +12,7 @@ logger = structlog.get_logger()
 
 
 class SkillRegistry:
-    """Central registry for all Claw-Vault Skills.
+    """Central registry for all ClawVault Skills.
 
     Manages Skill lifecycle: register → initialize → invoke → unregister.
     Provides a unified interface for OpenClaw to discover and call tools.
@@ -66,7 +66,7 @@ class SkillRegistry:
         return self.invoke(parts[0], parts[1], **kwargs)
 
     def register_builtins(self) -> None:
-        """Register all built-in Claw-Vault Skills."""
+        """Register all built-in ClawVault Skills."""
         from claw_vault.skills.sanitize_restore import SanitizeRestoreSkill
         from claw_vault.skills.prompt_firewall import PromptFirewallSkill
         from claw_vault.skills.security_scan import SecurityScanSkill

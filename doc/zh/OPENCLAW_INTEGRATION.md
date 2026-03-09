@@ -2,12 +2,12 @@
 
 > [English](../OPENCLAW_INTEGRATION.md)
 
-本指南说明如何将 Claw-Vault 与 [OpenClaw](https://github.com/spai-lab/openclaw) 对接，使 OpenClaw 的所有 AI API 流量自动被拦截和保护。
+本指南说明如何将 ClawVault 与 [OpenClaw](https://github.com/tophant-ai/openclaw) 对接，使 OpenClaw 的所有 AI API 流量自动被拦截和保护。
 
 ## 工作原理
 
 ```
-OpenClaw IDE  →  HTTP_PROXY  →  Claw-Vault 代理 (:8765)  →  AI 提供商 API
+OpenClaw IDE  →  HTTP_PROXY  →  ClawVault 代理 (:8765)  →  AI 提供商 API
                                       │
                                  检测引擎
                                  （敏感数据、注入攻击、危险命令）
@@ -15,11 +15,11 @@ OpenClaw IDE  →  HTTP_PROXY  →  Claw-Vault 代理 (:8765)  →  AI 提供商
                                  仪表盘 (:8766)
 ```
 
-Claw-Vault 作为透明 HTTP 代理运行。通过为 OpenClaw 设置 `HTTP_PROXY` / `HTTPS_PROXY` 环境变量，所有出站 AI API 请求都会经过 Claw-Vault 进行检测。
+ClawVault 作为透明 HTTP 代理运行。通过为 OpenClaw 设置 `HTTP_PROXY` / `HTTPS_PROXY` 环境变量，所有出站 AI API 请求都会经过 ClawVault 进行检测。
 
 ## 前置要求
 
-- Claw-Vault 已安装并正常运行（[生产部署](./INSTALL_PRODUCTION.md) 或 [开发环境](./INSTALL_DEV.md)）
+- ClawVault 已安装并正常运行（[生产部署](./INSTALL_PRODUCTION.md) 或 [开发环境](./INSTALL_DEV.md)）
 - OpenClaw 已安装在同一台服务器上
 
 ## 自动配置
@@ -33,17 +33,17 @@ source venv/bin/activate
 ```
 
 该脚本会：
-1. 验证 Claw-Vault 已安装
+1. 验证 ClawVault 已安装
 2. 将代理环境变量注入 `openclaw-gateway.service`（systemd）
-3. 初始化 Claw-Vault 配置，设置 `ssl_verify: false`
+3. 初始化 ClawVault 配置，设置 `ssl_verify: false`
 
 ## 启动
 
 ```bash
-# 启动 Claw-Vault，自动重启 openclaw-gateway 并配置代理
+# 启动 ClawVault，自动重启 openclaw-gateway 并配置代理
 ./scripts/start.sh
 
-# 或同时启动 Claw-Vault + OpenClaw TUI
+# 或同时启动 ClawVault + OpenClaw TUI
 ./scripts/start.sh --with-openclaw
 ```
 
@@ -51,7 +51,7 @@ source venv/bin/activate
 
 如果不使用 systemd 或需要手动配置：
 
-### 1. 启动 Claw-Vault
+### 1. 启动 ClawVault
 
 ```bash
 cd ~/prj/claw-vault
@@ -76,11 +76,11 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 openclaw
 ```
 
-此后 OpenClaw 的所有 AI API 调用都会经过 Claw-Vault。
+此后 OpenClaw 的所有 AI API 调用都会经过 ClawVault。
 
 ## 验证集成
 
-1. 打开 Claw-Vault 仪表盘：`http://<服务器IP>:8766`
+1. 打开 ClawVault 仪表盘：`http://<服务器IP>:8766`
 2. 使用 OpenClaw 向 AI 提供商发送一条消息
 3. 查看 **Events** 标签页 — 应能看到被拦截的请求
 4. 尝试发送包含测试密钥的消息（如 `sk-proj-test123`），观察检测结果
@@ -127,7 +127,7 @@ proxy:
 
 **SSL/TLS 错误**：在配置中设置 `ssl_verify: false`，并在 OpenClaw 环境中设置 `NODE_TLS_REJECT_UNAUTHORIZED=0`。
 
-**代理不可达**：确认 Claw-Vault 正在运行：
+**代理不可达**：确认 ClawVault 正在运行：
 ```bash
 curl -s http://127.0.0.1:8766/api/health
 ```

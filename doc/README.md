@@ -1,4 +1,4 @@
-# Claw-Vault Documentation
+# ClawVault Documentation
 
 > [中文版](./zh/README.md)
 
@@ -23,7 +23,7 @@
 | Script | Description |
 |--------|-------------|
 | `scripts/deploy.sh <ip> [user]` | Deploy to cloud server |
-| `scripts/start.sh` | Start Claw-Vault (add `--with-openclaw` for OpenClaw) |
+| `scripts/start.sh` | Start ClawVault (add `--with-openclaw` for OpenClaw) |
 | `scripts/stop.sh` | Stop all services |
 | `scripts/test.sh` | Run CLI + API tests |
 | `scripts/setup.sh` | Configure OpenClaw proxy integration |

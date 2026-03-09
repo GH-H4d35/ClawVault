@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup OpenClaw + Claw-Vault integration
+# Setup OpenClaw + ClawVault integration
 # Configures proxy in openclaw-gateway systemd service
 # Usage: ./scripts/setup.sh
 
@@ -7,7 +7,7 @@ set -e
 
 SERVICE_FILE="$HOME/.config/systemd/user/openclaw-gateway.service"
 
-echo "🔗 OpenClaw + Claw-Vault Setup"
+echo "🔗 OpenClaw + ClawVault Setup"
 echo "========================"
 echo ""
 

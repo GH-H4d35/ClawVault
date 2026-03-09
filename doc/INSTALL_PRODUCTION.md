@@ -21,7 +21,7 @@ This script will:
 1. Package the project (excluding `__pycache__`, `.pyc`)
 2. Upload to the server via SCP
 3. Create a Python virtual environment on the server
-4. Install Claw-Vault in the venv
+4. Install ClawVault in the venv
 
 ## First-Time Setup (on server)
 
@@ -61,7 +61,7 @@ dashboard:
 ## Start / Stop
 
 ```bash
-./scripts/start.sh         # Start Claw-Vault (background)
+./scripts/start.sh         # Start ClawVault (background)
 ./scripts/stop.sh          # Stop all services
 ```
 
@@ -110,7 +110,7 @@ Or test via the Dashboard web UI: open the **Test** tab and run any test case.
 | Script | Description |
 |--------|-------------|
 | `scripts/deploy.sh <ip> [user]` | Pack, upload, and install on server |
-| `scripts/start.sh` | Start Claw-Vault (add `--with-openclaw` for OpenClaw) |
+| `scripts/start.sh` | Start ClawVault (add `--with-openclaw` for OpenClaw) |
 | `scripts/stop.sh` | Stop all services |
 | `scripts/test.sh` | Run CLI + API tests |
 | `scripts/setup.sh` | Configure OpenClaw proxy integration |

@@ -10,7 +10,7 @@
 ## Clone & Install
 
 ```bash
-git clone https://github.com/spai-lab/claw-vault.git
+git clone https://github.com/tophant-ai/claw-vault.git
 cd claw-vault
 python3 -m venv venv
 source venv/bin/activate
@@ -73,4 +73,3 @@ claw-vault start --help    # Start options
 claw-vault scan --help     # Scan options
 claw-vault skill list      # List available skills
 claw-vault skill export    # Export skills as OpenAI function-calling JSON
-```

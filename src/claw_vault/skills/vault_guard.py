@@ -52,7 +52,7 @@ class VaultGuardSkill(BaseSkill):
                 SkillPermission.AUDIT_LOG,
             ],
             tags=["security", "vault", "file-protection", "exfiltration"],
-            homepage="https://github.com/spai-lab/claw-vault",
+            homepage="https://github.com/tophant-ai/ClawVault",
         )
 
     @tool(

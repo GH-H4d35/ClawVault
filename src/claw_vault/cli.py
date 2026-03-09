@@ -1,4 +1,4 @@
-"""CLI interface for Claw-Vault using Typer."""
+"""CLI interface for ClawVault using Typer."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ def version_callback(value: bool):
     """Show version and exit."""
     if value:
         console = Console()
-        console.print(f"Claw-Vault v{__version__}")
+        console.print(f"ClawVault v{__version__}")
         raise typer.Exit()
 
 app = typer.Typer(
     name="claw-vault",
-    help="🛡️ Claw-Vault: Physical-level memory isolation vault for AI credentials",
+    help="🛡️ ClawVault: Physical-level memory isolation vault for AI credentials",
     no_args_is_help=True,
 )
 console = Console()
@@ -40,7 +40,7 @@ def main(
         help="Show version and exit",
     ),
 ):
-    """Claw-Vault CLI."""
+    """ClawVault CLI."""
     pass
 
 
@@ -53,7 +53,7 @@ def start(
     no_dashboard: bool = typer.Option(False, help="Disable web dashboard"),
     config: Optional[Path] = typer.Option(None, help="Path to config.yaml"),
 ):
-    """Start Claw-Vault proxy and dashboard."""
+    """Start ClawVault proxy and dashboard."""
     settings = load_settings(config)
     settings.proxy.port = port
     settings.dashboard.port = dashboard_port
@@ -73,7 +73,7 @@ def start(
     try:
         asyncio.run(_run_services(settings))
     except KeyboardInterrupt:
-        console.print("\n[yellow]Shutting down Claw-Vault...[/yellow]")
+        console.print("\n[yellow]Shutting down ClawVault...[/yellow]")
 
 
 async def _run_services(settings: Settings):
@@ -132,12 +132,12 @@ async def _run_services(settings: Settings):
         server = uvicorn.Server(config)
         console.print("[green]✓[/green] Dashboard started")
         console.print()
-        console.print("[bold]Claw-Vault is protecting your AI interactions.[/bold]")
+        console.print("[bold]ClawVault is protecting your AI interactions.[/bold]")
         console.print("Press Ctrl+C to stop.\n")
 
         await server.serve()
     else:
-        console.print("[bold]Claw-Vault proxy is running.[/bold] Press Ctrl+C to stop.\n")
+        console.print("[bold]ClawVault proxy is running.[/bold] Press Ctrl+C to stop.\n")
         # Keep running until interrupted
         try:
             while True:
@@ -215,7 +215,7 @@ def vault_discover():
 
 @app.command()
 def demo():
-    """Run an interactive demo showing Claw-Vault detection capabilities."""
+    """Run an interactive demo showing ClawVault detection capabilities."""
     _show_banner()
 
     demo_texts = [
@@ -257,12 +257,12 @@ def demo():
 @app.command()
 def version():
     """Show version information."""
-    console.print(f"Claw-Vault v{__version__}")
+    console.print(f"ClawVault v{__version__}")
 
 
 # ── Config subcommands ──────────────────────────────────────────
 
-config_app = typer.Typer(help="Manage Claw-Vault configuration")
+config_app = typer.Typer(help="Manage ClawVault configuration")
 app.add_typer(config_app, name="config")
 
 
@@ -337,7 +337,7 @@ def config_path():
 
 # ── Skill subcommands ──────────────────────────────────────────
 
-skill_app = typer.Typer(help="Manage and invoke Claw-Vault Skills")
+skill_app = typer.Typer(help="Manage and invoke ClawVault Skills")
 app.add_typer(skill_app, name="skill")
 
 
@@ -411,7 +411,7 @@ def skill_export():
 
 def _show_banner():
     banner = Text()
-    banner.append("🛡️ Claw-Vault", style="bold green")
+    banner.append("🛡️ ClawVault", style="bold green")
     banner.append(f" v{__version__}\n", style="dim")
     banner.append("Physical-level memory isolation vault for AI credentials", style="italic")
     console.print(Panel(banner, border_style="green"))

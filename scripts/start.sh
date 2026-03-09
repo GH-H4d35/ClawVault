@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start Claw-Vault services and configure OpenClaw proxy
+# Start ClawVault services and configure OpenClaw proxy
 # Usage: ./scripts/start.sh [--with-openclaw]
 
 set -e
@@ -19,12 +19,12 @@ if [ -z "$VENV" ]; then
     exit 1
 fi
 
-echo "🛡️  Starting Claw-Vault"
+echo "🛡️  Starting ClawVault"
 echo "========================"
 
 # 1. Start claw-vault
 if curl -s http://127.0.0.1:8766/api/health > /dev/null 2>&1; then
-    echo "✓ Claw-Vault already running"
+    echo "✓ ClawVault already running"
 else
     cd "$CLAW_VAULT_DIR"
     source "$VENV/bin/activate"
@@ -40,7 +40,7 @@ else
     sleep 3
 
     if curl -s http://127.0.0.1:8766/api/health > /dev/null 2>&1; then
-        echo "✓ Claw-Vault started (PID: $!)"
+        echo "✓ ClawVault started (PID: $!)"
     else
         echo "❌ Failed to start. Check: tail -f $LOG"
         exit 1

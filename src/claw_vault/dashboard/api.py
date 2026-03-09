@@ -1,4 +1,4 @@
-"""REST API endpoints for the Claw-Vault dashboard."""
+"""REST API endpoints for the ClawVault dashboard."""
 
 from __future__ import annotations
 

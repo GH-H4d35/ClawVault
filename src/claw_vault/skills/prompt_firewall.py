@@ -37,7 +37,7 @@ class PromptFirewallSkill(BaseSkill):
                 SkillPermission.MODIFY_CHAT,
             ],
             tags=["security", "prompt-injection", "poisoning", "firewall"],
-            homepage="https://github.com/spai-lab/claw-vault",
+            homepage="https://github.com/tophant-ai/ClawVault",
         )
 
     @tool(

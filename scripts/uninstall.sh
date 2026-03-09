@@ -1,5 +1,5 @@
 #!/bin/bash
-# Uninstall Claw-Vault and restore OpenClaw to original state
+# Uninstall ClawVault and restore OpenClaw to original state
 # Usage: ./scripts/uninstall.sh [--keep-config]
 
 KEEP_CONFIG=false
@@ -7,7 +7,7 @@ KEEP_CONFIG=false
 
 SERVICE_FILE="$HOME/.config/systemd/user/openclaw-gateway.service"
 
-echo "🔄 Uninstall Claw-Vault"
+echo "🔄 Uninstall ClawVault"
 echo "========================"
 echo ""
 

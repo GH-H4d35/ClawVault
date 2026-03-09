@@ -10,7 +10,7 @@
 ## 克隆与安装
 
 ```bash
-git clone https://github.com/spai-lab/claw-vault.git
+git clone https://github.com/tophant-ai/claw-vault.git
 cd claw-vault
 python3 -m venv venv
 source venv/bin/activate
@@ -73,4 +73,3 @@ claw-vault start --help    # 启动选项
 claw-vault scan --help     # 扫描选项
 claw-vault skill list      # 列出可用 Skill
 claw-vault skill export    # 导出 Skill 为 OpenAI function-calling JSON
-```

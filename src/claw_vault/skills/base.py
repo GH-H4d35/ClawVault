@@ -1,4 +1,4 @@
-"""Base classes and decorators for Claw-Vault Skills.
+"""Base classes and decorators for ClawVault Skills.
 
 A Skill is an independently distributable unit of security functionality
 that can be installed in OpenClaw and invoked by AI Agents or users.
@@ -167,7 +167,7 @@ def tool(
 
 
 class BaseSkill(ABC):
-    """Abstract base class for all Claw-Vault Skills.
+    """Abstract base class for all ClawVault Skills.
 
     Subclass this and:
     1. Override `manifest()` to declare metadata

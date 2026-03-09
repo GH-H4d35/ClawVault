@@ -1,4 +1,4 @@
-"""Web dashboard for Claw-Vault monitoring and management."""
+"""Web dashboard for ClawVault monitoring and management."""
 
 from claw_vault.dashboard.app import create_app
 

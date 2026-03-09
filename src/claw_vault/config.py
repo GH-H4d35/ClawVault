@@ -1,4 +1,4 @@
-"""Configuration models for Claw-Vault."""
+"""Configuration models for ClawVault."""
 
 from __future__ import annotations
 

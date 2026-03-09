@@ -1,4 +1,4 @@
-# Claw-Vault 文档
+# ClawVault 文档
 
 > [English](../README.md)
 
@@ -23,7 +23,7 @@
 | 脚本 | 说明 |
 |------|------|
 | `scripts/deploy.sh <ip> [user]` | 部署到云服务器 |
-| `scripts/start.sh` | 启动 Claw-Vault（加 `--with-openclaw` 同时启动 OpenClaw） |
+| `scripts/start.sh` | 启动 ClawVault（加 `--with-openclaw` 同时启动 OpenClaw） |
 | `scripts/stop.sh` | 停止所有服务 |
 | `scripts/test.sh` | 运行 CLI + API 测试 |
 | `scripts/setup.sh` | 配置 OpenClaw 代理集成 |

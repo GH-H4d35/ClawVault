@@ -1,4 +1,4 @@
-"""FastAPI application for the Claw-Vault dashboard."""
+"""FastAPI application for the ClawVault dashboard."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Claw-Vault Dashboard",
+        title="ClawVault Dashboard",
         version=__version__,
-        description="Security monitoring dashboard for Claw-Vault",
+        description="Security monitoring dashboard for ClawVault",
     )
 
     app.include_router(api_router, prefix="/api")
@@ -42,7 +42,7 @@ def _fallback_html() -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claw-Vault Dashboard</title>
+    <title>ClawVault Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -57,7 +57,7 @@ def _fallback_html() -> str:
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-vault-600 rounded-lg flex items-center justify-center text-xl">🛡️</div>
                 <div>
-                    <h1 class="text-2xl font-bold">Claw-Vault</h1>
+                    <h1 class="text-2xl font-bold">ClawVault</h1>
                     <p class="text-gray-400 text-sm">Security Dashboard</p>
                 </div>
             </div>

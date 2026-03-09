@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "claw-vault"
+name = "ClawVault"
 version = "0.1.0"
 description = "Physical-level memory isolation vault for AI credentials - Your AI's zero-trust safe"
 readme = "README.md"
@@ -50,10 +50,10 @@ dev = [
 claw-vault = "claw_vault.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/spai-lab/claw-vault"
-Documentation = "https://claw-vault.dev"
-Repository = "https://github.com/spai-lab/claw-vault"
-Issues = "https://github.com/spai-lab/claw-vault/issues"
+Homepage = "https://github.com/tophant-ai/ClawVault"
+Documentation = "https://ClawVault.dev"
+Repository = "https://github.com/tophant-ai/ClawVault"
+Issues = "https://github.com/tophant-ai/ClawVault/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claw_vault"]

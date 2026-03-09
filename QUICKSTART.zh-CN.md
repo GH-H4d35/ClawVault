@@ -1,4 +1,4 @@
-# Claw-Vault 快速入门
+# ClawVault 快速入门
 
 **[English](./QUICKSTART.md)** | **[中文](./QUICKSTART.zh-CN.md)**
 
@@ -23,8 +23,8 @@ source venv/bin/activate
 ## 3. 启动
 
 ```bash
-./scripts/start.sh                  # 仅启动 Claw-Vault
-./scripts/start.sh --with-openclaw  # 启动 Claw-Vault + OpenClaw
+./scripts/start.sh                  # 仅启动 ClawVault
+./scripts/start.sh --with-openclaw  # 启动 ClawVault + OpenClaw
 ```
 
 服务：

@@ -38,7 +38,7 @@ class SecurityReportSkill(BaseSkill):
                 SkillPermission.READ_CHAT,
             ],
             tags=["security", "reporting", "monitoring", "tokens", "cost"],
-            homepage="https://github.com/spai-lab/claw-vault",
+            homepage="https://github.com/tophant-ai/claw-vault",
         )
 
     @tool(
@@ -84,7 +84,7 @@ class SecurityReportSkill(BaseSkill):
 
         # Build human-readable summary
         lines = [
-            f"📊 **Claw-Vault Session Report**",
+            f"📊 **ClawVault Session Report**",
             f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
             f"",
             f"🔢 **Token Usage**",

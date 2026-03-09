@@ -1,4 +1,4 @@
-# Claw-Vault Architecture
+# ClawVault Architecture
 
 > [中文版](./zh/architecture.md)
 
@@ -13,7 +13,7 @@
 └────────┼──────────────┼──────────────┼───────────────┼───────────┘
          │              │              │               │
     ┌────▼──────────────▼──────────────▼───────────────▼────┐
-    │              Claw-Vault Transparent Proxy               │
+    │              ClawVault Transparent Proxy               │
     │  ┌─────────────────────────────────────────────────┐   │
     │  │              Interceptor Pipeline                │   │
     │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌───────┐ │   │

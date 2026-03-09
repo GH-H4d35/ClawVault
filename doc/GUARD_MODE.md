@@ -1,8 +1,8 @@
-# Claw-Vault Guard Modes
+# ClawVault Guard Modes
 
 > [中文版](./zh/GUARD_MODE.md)
 
-Claw-Vault provides three guard modes. Switch them in real-time via the Dashboard Config tab (`:8766`) — changes take effect immediately.
+ClawVault provides three guard modes. Switch them in real-time via the Dashboard Config tab (`:8766`) — changes take effect immediately.
 
 ## Modes
 
@@ -46,7 +46,7 @@ Claw-Vault provides three guard modes. Switch them in real-time via the Dashboar
 ```json
 {
   "error": {
-    "message": "[Claw-Vault] Strict mode: threat blocked\n\nDetected:\n  - AWS Access Key ID: AKIA***MPLE",
+    "message": "[ClawVault] Strict mode: threat blocked\n\nDetected:\n  - AWS Access Key ID: AKIA***MPLE",
     "type": "claw_vault_block",
     "code": "content_blocked"
   }
@@ -62,7 +62,7 @@ Claw-Vault provides three guard modes. Switch them in real-time via the Dashboar
   "choices": [{
     "message": {
       "role": "assistant",
-      "content": "[Claw-Vault] Sensitive data detected:\n  - AWS Access Key ID: AKIA***MPLE\n\nPlease revise your message and resend."
+      "content": "[ClawVault] Sensitive data detected:\n  - AWS Access Key ID: AKIA***MPLE\n\nPlease revise your message and resend."
     }
   }]
 }
@@ -70,7 +70,7 @@ Claw-Vault provides three guard modes. Switch them in real-time via the Dashboar
 
 ## Session Continuity
 
-When a message is blocked, subsequent requests automatically strip the blocked message and its Claw-Vault error response, so the conversation can continue without interference.
+When a message is blocked, subsequent requests automatically strip the blocked message and its ClawVault error response, so the conversation can continue without interference.
 
 ## Configuration
 

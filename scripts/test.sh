@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claw-Vault quick test
+# ClawVault quick test
 # Usage: ./scripts/test.sh
 
 set -e
@@ -15,7 +15,7 @@ check() {
     fi
 }
 
-echo "🧪 Claw-Vault Test"
+echo "🧪 ClawVault Test"
 echo "========================"
 echo ""
 
@@ -80,21 +80,21 @@ if nc -z 127.0.0.1 8765 2>/dev/null; then
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d '{"model":"Pro/MiniMaxAI/MiniMax-M2.5","messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"My AWS key is AKIAIOSFODNN7EXAMPLE"}],"max_tokens":5}' 2>/dev/null)
-    check "Strict: blocks AWS key with details" "echo '$RESP' | grep -q 'Claw-Vault' && echo '$RESP' | grep -q 'AWS'"
+    check "Strict: blocks AWS key with details" "echo '$RESP' | grep -q 'ClawVault' && echo '$RESP' | grep -q 'AWS'"
 
     # Test 2: Strict blocks PII with masked details
     RESP=$(curl -s -x "$PROXY" -k "$API_URL" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d "{\"model\":\"Pro/MiniMaxAI/MiniMax-M2.5\",\"messages\":[{\"role\":\"user\",\"content\":\"User John Smith phone 13812345678 ID 110101199003075134\"}],\"max_tokens\":5}" 2>/dev/null)
-    check "Strict: blocks PII with details" "echo '$RESP' | grep -q 'Claw-Vault'"
+    check "Strict: blocks PII with details" "echo '$RESP' | grep -q 'ClawVault'"
 
     # Test 3: Session continuity — blocked msg stripped from history
     RESP=$(curl -s -x "$PROXY" -k "$API_URL" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d '{"model":"Pro/MiniMaxAI/MiniMax-M2.5","messages":[{"role":"user","content":"My AWS key is AKIAIOSFODNN7EXAMPLE"},{"role":"assistant","content":"blocked"},{"role":"user","content":"hi, how are you?"}],"max_tokens":5}' 2>/dev/null)
-    check "Session continuity: safe msg after blocked history" "echo '$RESP' | grep -v 'Claw-Vault' | grep -v 'content_blocked' | grep -q ."
+    check "Session continuity: safe msg after blocked history" "echo '$RESP' | grep -v 'ClawVault' | grep -v 'content_blocked' | grep -q ."
 
     # Test 4: Interactive mode — warning as LLM response (not block)
     curl -sf -X POST http://127.0.0.1:8766/api/config/guard -H 'Content-Type: application/json' -d '{"mode":"interactive","auto_sanitize":false}' > /dev/null 2>&1
@@ -110,7 +110,7 @@ if nc -z 127.0.0.1 8765 2>/dev/null; then
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d '{"model":"Pro/MiniMaxAI/MiniMax-M2.5","messages":[{"role":"user","content":"My AWS key is AKIAIOSFODNN7EXAMPLE"}],"max_tokens":5}' 2>/dev/null)
-    check "Interactive+sanitize: masks sensitive data" "echo '$RESP' | grep -v 'Claw-Vault' | grep -v 'content_blocked' | grep -q ."
+    check "Interactive+sanitize: masks sensitive data" "echo '$RESP' | grep -v 'ClawVault' | grep -v 'content_blocked' | grep -q ."
 
     # Test 6: Permissive allows everything with logging
     curl -sf -X POST http://127.0.0.1:8766/api/config/guard -H 'Content-Type: application/json' -d '{"mode":"permissive","auto_sanitize":false}' > /dev/null 2>&1
@@ -118,7 +118,7 @@ if nc -z 127.0.0.1 8765 2>/dev/null; then
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d '{"model":"Pro/MiniMaxAI/MiniMax-M2.5","messages":[{"role":"user","content":"My AWS key is AKIAIOSFODNN7EXAMPLE"}],"max_tokens":5}' 2>/dev/null)
-    check "Permissive: allows threat (log only)" "echo '$RESP' | grep -v 'Claw-Vault' | grep -v 'content_blocked' | grep -q ."
+    check "Permissive: allows threat (log only)" "echo '$RESP' | grep -v 'ClawVault' | grep -v 'content_blocked' | grep -q ."
 
     # Test 7: Blockchain detection — ETH address
     curl -sf -X POST http://127.0.0.1:8766/api/config/guard -H 'Content-Type: application/json' -d '{"mode":"strict"}' > /dev/null 2>&1
@@ -126,14 +126,14 @@ if nc -z 127.0.0.1 8765 2>/dev/null; then
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d '{"model":"Pro/MiniMaxAI/MiniMax-M2.5","messages":[{"role":"user","content":"Send ETH to 0x742d35Cc6634C0532925a3b844Bc9e7595f2bD38"}],"max_tokens":5}' 2>/dev/null)
-    check "Strict: blocks ETH wallet address" "echo '$RESP' | grep -q 'Claw-Vault'"
+    check "Strict: blocks ETH wallet address" "echo '$RESP' | grep -q 'ClawVault'"
 
     # Test 8: Blockchain detection — private key
     RESP=$(curl -s -x "$PROXY" -k "$API_URL" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $API_KEY" \
         -d '{"model":"Pro/MiniMaxAI/MiniMax-M2.5","messages":[{"role":"user","content":"private_key=4c0883a69102937d6231471b5dbb6204fe512961708279f3dbb6204fe512961a"}],"max_tokens":5}' 2>/dev/null)
-    check "Strict: blocks blockchain private key" "echo '$RESP' | grep -q 'Claw-Vault'"
+    check "Strict: blocks blockchain private key" "echo '$RESP' | grep -q 'ClawVault'"
 
     # Test 9: Events appear with details
     check "Dashboard scan-history has events" "curl -sf http://127.0.0.1:8766/api/scan-history?limit=5 | python3 -c 'import json,sys; d=json.load(sys.stdin); evts=[e for e in d if e.get(\"source\")==\"proxy\"]; assert len(evts)>0; assert evts[0].get(\"sensitive\") or evts[0].get(\"injections\") or evts[0].get(\"commands\")'"

@@ -18,7 +18,7 @@ if [ -z "$SERVER_IP" ]; then
 fi
 
 echo "========================================"
-echo "Claw-Vault One-Click Deploy & Install"
+echo "ClawVault One-Click Deploy & Install"
 echo "========================================"
 echo "Server: $SERVER_USER@$SERVER_IP"
 echo "Target path: $SERVER_PATH"
@@ -115,7 +115,7 @@ source venv/bin/activate
 echo "→ Upgrading pip..."
 pip install --upgrade pip setuptools wheel -q
 
-echo "→ Installing Claw-Vault (dev mode)..."
+echo "→ Installing ClawVault (dev mode)..."
 pip install -e . -q
 
 echo "→ Verifying installation..."

@@ -133,7 +133,7 @@ class ClawVaultAddon:
                 json.dumps(
                     {
                         "error": {
-                            "message": f"[Claw-Vault] {action_result.reason}\n\n{detail_lines}",
+                            "message": f"[ClawVault] {action_result.reason}\n\n{detail_lines}",
                             "type": "claw_vault_block",
                             "code": "content_blocked",
                         },
@@ -155,7 +155,7 @@ class ClawVaultAddon:
             # Interactive mode: return a warning as a fake LLM response
             detail_lines = self._format_block_details(scan, action_result)
             warning_msg = (
-                f"⚠️ [Claw-Vault 安全提醒]\n\n"
+                f"⚠️ [ClawVault 安全提醒]\n\n"
                 f"{action_result.reason}\n\n"
                 f"{detail_lines}\n\n"
                 f"请修改您的消息后重新发送，或联系管理员调整安全策略。"
@@ -321,8 +321,8 @@ class ClawVaultAddon:
             if role == "user" and isinstance(content, str) and content in self._blocked_contents:
                 logger.debug("stripped_blocked_message", content_preview=content[:40])
                 continue
-            # Also strip Claw-Vault error/warning assistant responses
-            if role == "assistant" and isinstance(content, str) and "[Claw-Vault]" in content:
+            # Also strip ClawVault error/warning assistant responses
+            if role == "assistant" and isinstance(content, str) and "[ClawVault]" in content:
                 logger.debug("stripped_claw_vault_response", content_preview=content[:40])
                 continue
             cleaned.append(msg)

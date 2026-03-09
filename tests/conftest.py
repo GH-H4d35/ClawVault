@@ -1,4 +1,4 @@
-"""Shared test fixtures for Claw-Vault tests."""
+"""Shared test fixtures for ClawVault tests."""
 
 import pytest
 

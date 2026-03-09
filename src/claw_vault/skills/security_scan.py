@@ -36,7 +36,7 @@ class SecurityScanSkill(BaseSkill):
                 SkillPermission.READ_FILES,
             ],
             tags=["security", "scanning", "secrets", "supply-chain"],
-            homepage="https://github.com/spai-lab/claw-vault",
+            homepage="https://github.com/tophant-ai/ClawVault",
         )
 
     @tool(

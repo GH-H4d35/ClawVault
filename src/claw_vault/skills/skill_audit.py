@@ -37,7 +37,7 @@ class SkillAuditSkill(BaseSkill):
                 SkillPermission.READ_CHAT,
             ],
             tags=["security", "audit", "permissions", "trust", "governance"],
-            homepage="https://github.com/spai-lab/claw-vault",
+            homepage="https://github.com/tophant-ai/ClawVault",
         )
 
     @tool(

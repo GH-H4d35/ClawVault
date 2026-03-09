@@ -2,12 +2,12 @@
 
 > [中文版](./zh/OPENCLAW_INTEGRATION.md)
 
-This guide explains how to connect Claw-Vault with [OpenClaw](https://github.com/spai-lab/openclaw) so that all AI API traffic from OpenClaw is automatically intercepted and protected.
+This guide explains how to connect ClawVault with [OpenClaw](https://github.com/tophant-ai/openclaw) so that all AI API traffic from OpenClaw is automatically intercepted and protected.
 
 ## How It Works
 
 ```
-OpenClaw IDE  →  HTTP_PROXY  →  Claw-Vault Proxy (:8765)  →  AI Provider APIs
+OpenClaw IDE  →  HTTP_PROXY  →  ClawVault Proxy (:8765)  →  AI Provider APIs
                                       │
                                  Detection Engine
                                  (sensitive data, injection, commands)
@@ -15,11 +15,11 @@ OpenClaw IDE  →  HTTP_PROXY  →  Claw-Vault Proxy (:8765)  →  AI Provider A
                                  Dashboard (:8766)
 ```
 
-Claw-Vault runs as a transparent HTTP proxy. By setting `HTTP_PROXY` / `HTTPS_PROXY` environment variables for OpenClaw, all outgoing AI API requests pass through Claw-Vault for inspection.
+ClawVault runs as a transparent HTTP proxy. By setting `HTTP_PROXY` / `HTTPS_PROXY` environment variables for OpenClaw, all outgoing AI API requests pass through ClawVault for inspection.
 
 ## Prerequisites
 
-- Claw-Vault installed and working ([Production](./INSTALL_PRODUCTION.md) or [Development](./INSTALL_DEV.md))
+- ClawVault installed and working ([Production](./INSTALL_PRODUCTION.md) or [Development](./INSTALL_DEV.md))
 - OpenClaw installed on the same server
 
 ## Automatic Setup
@@ -33,17 +33,17 @@ source venv/bin/activate
 ```
 
 This script will:
-1. Verify Claw-Vault is installed
+1. Verify ClawVault is installed
 2. Inject proxy environment variables into `openclaw-gateway.service` (systemd)
-3. Initialize Claw-Vault config with `ssl_verify: false`
+3. Initialize ClawVault config with `ssl_verify: false`
 
 ## Start with OpenClaw
 
 ```bash
-# Start Claw-Vault, then auto-restart openclaw-gateway with proxy configured
+# Start ClawVault, then auto-restart openclaw-gateway with proxy configured
 ./scripts/start.sh
 
-# Or start Claw-Vault + launch OpenClaw TUI together
+# Or start ClawVault + launch OpenClaw TUI together
 ./scripts/start.sh --with-openclaw
 ```
 
@@ -51,7 +51,7 @@ This script will:
 
 If you prefer manual configuration or don't use systemd:
 
-### 1. Start Claw-Vault
+### 1. Start ClawVault
 
 ```bash
 cd ~/prj/claw-vault
@@ -76,11 +76,11 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 openclaw
 ```
 
-All AI API calls from OpenClaw will now pass through Claw-Vault.
+All AI API calls from OpenClaw will now pass through ClawVault.
 
 ## Verify Integration
 
-1. Open the Claw-Vault Dashboard: `http://<server-ip>:8766`
+1. Open the ClawVault Dashboard: `http://<server-ip>:8766`
 2. Use OpenClaw to send a message to an AI provider
 3. Check the **Events** tab — you should see the intercepted request
 4. Try sending a message containing a test secret (e.g. `sk-proj-test123`) and observe the detection
@@ -105,7 +105,7 @@ curl -X POST http://localhost:8766/api/config/guard \
 
 ## Supported AI Providers
 
-Claw-Vault intercepts traffic to these hosts by default (configurable in `config.yaml`):
+ClawVault intercepts traffic to these hosts by default (configurable in `config.yaml`):
 
 - `api.openai.com`
 - `api.anthropic.com`
@@ -129,7 +129,7 @@ proxy:
 
 **SSL/TLS errors**: Set `ssl_verify: false` in config and `NODE_TLS_REJECT_UNAUTHORIZED=0` in the OpenClaw environment.
 
-**Proxy not reachable**: Confirm Claw-Vault is running:
+**Proxy not reachable**: Confirm ClawVault is running:
 ```bash
 curl -s http://127.0.0.1:8766/api/health
 ```
