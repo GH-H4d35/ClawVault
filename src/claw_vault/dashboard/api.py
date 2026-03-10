@@ -10,6 +10,8 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from claw_vault.guard.rules_store import RuleConfig, export_rules, load_rules, save_rules
+
 router = APIRouter(tags=["dashboard"])
 
 # These will be injected at startup via app.state
@@ -18,6 +20,7 @@ _token_counter = None
 _budget_manager = None
 _settings = None
 _rule_engine = None
+_rules: list[RuleConfig] = []
 
 # --------------- In-memory stores ---------------
 
@@ -60,6 +63,12 @@ def set_dependencies(audit_store, token_counter, budget_manager, settings=None, 
     # Auto-discover OpenClaw agents
     _sync_openclaw_agents()
 
+    # Load custom rules from disk and push into the live rule engine
+    global _rules
+    _rules = load_rules()
+    if _rule_engine and hasattr(_rule_engine, "set_rules"):
+        _rule_engine.set_rules(_rules)
+
 
 # --------------- Pydantic models ---------------
 
@@ -79,6 +88,12 @@ class AgentConfig(BaseModel):
 class ScanRequest(BaseModel):
     text: str
     agent_id: Optional[str] = None
+
+
+class RulesPayload(BaseModel):
+    """Payload for replacing the full custom rule set."""
+
+    rules: list[dict] = Field(default_factory=list)
 
 
 @router.get("/health")
@@ -262,6 +277,36 @@ async def update_detection_config(config: dict[str, bool]):
             _global_detection_config[key] = config[key]
     _persist_config()
     return _global_detection_config
+
+
+@router.get("/config/rules")
+async def get_rules():
+    """Get current custom rule list from rules.yaml."""
+    return export_rules(_rules)
+
+
+@router.post("/config/rules")
+async def replace_rules(payload: RulesPayload):
+    """Replace custom rules and persist them to rules.yaml.
+
+    The frontend sends a JSON array of rule dictionaries. We validate
+    each entry via RuleConfig and update the in-memory rule engine.
+    """
+    global _rules
+    new_rules: list[RuleConfig] = []
+    for raw in payload.rules:
+        try:
+            new_rules.append(RuleConfig(**raw))
+        except Exception as exc:  # pragma: no cover - defensive logging
+            # Skip invalid entries but continue processing others
+            import structlog
+
+            structlog.get_logger().warning("dashboard.rules.invalid", error=str(exc), raw=raw)
+    _rules = new_rules
+    save_rules(_rules)
+    if _rule_engine and hasattr(_rule_engine, "set_rules"):
+        _rule_engine.set_rules(_rules)
+    return export_rules(_rules)
 
 
 @router.get("/config/guard")

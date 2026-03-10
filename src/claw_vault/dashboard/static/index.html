@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClawVault Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -224,7 +225,7 @@
                     <p class="text-xs text-gray-500 mt-1">Enable or disable detection categories globally</p>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
                     <!-- Sensitive Data -->
                     <div class="bg-surface-900 rounded-2xl border border-gray-800/50 p-6">
                         <div class="flex items-center gap-2 mb-5">
@@ -249,6 +250,53 @@
                         <div class="space-y-4" id="config-threat-toggles">
                             <!-- populated by JS -->
                         </div>
+                    </div>
+                </div>
+
+                <!-- Rule Engine (Custom Rules) -->
+                <div class="bg-surface-900 rounded-2xl border border-gray-800/50 p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                                <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="4 3 20 12 4 21 4 3"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-semibold text-white">Rule Engine (Custom Rules)</h4>
+                                <p class="text-xs text-gray-500 mt-0.5">Advanced rule list in YAML. First matching rule wins and overrides the guard mode matrix.</p>
+                            </div>
+                        </div>
+                        <button onclick="insertRuleTemplate()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-xs text-gray-300 rounded-lg">Insert Example</button>
+                    </div>
+                    <div class="mb-2">
+                        <p class="text-xs text-gray-500 leading-relaxed">
+                            Each rule is a YAML object with fields:
+                            <code class="bg-surface-800 px-1.5 py-0.5 rounded text-[11px] text-gray-300">id</code>,
+                            <code class="bg-surface-800 px-1.5 py-0.5 rounded text-[11px] text-gray-300">name</code>,
+                            <code class="bg-surface-800 px-1.5 py-0.5 rounded text-[11px] text-gray-300">enabled</code>,
+                            <code class="bg-surface-800 px-1.5 py-0.5 rounded text-[11px] text-gray-300">action</code>
+                            (<span class="text-gray-400">allow | block | sanitize | ask_user</span>),
+                            and <code class="bg-surface-800 px-1.5 py-0.5 rounded text-[11px] text-gray-300">when</code>
+                            (conditions like <code class="text-[11px] text-gray-300">has_injections</code>,
+                            <code class="text-[11px] text-gray-300">has_sensitive</code>,
+                            <code class="text-[11px] text-gray-300">min_risk_score</code>,
+                            <code class="text-[11px] text-gray-300">pattern_types</code>).
+                        </p>
+                    </div>
+                    <textarea id="rules-yaml-editor" class="w-full mt-3 bg-surface-950 border border-gray-800/70 rounded-xl px-4 py-3 text-xs text-gray-200 font-mono leading-relaxed resize-y min-h-[180px] max-h-[420px] placeholder-gray-600 focus:ring-1 focus:ring-vault-500 focus:border-vault-500" spellcheck="false" placeholder='- id: block-injections
+  name: Block all injections
+  enabled: true
+  action: block
+  when:
+    has_injections: true'></textarea>
+                    <div class="flex items-center justify-between mt-3">
+                        <p class="text-[11px] text-gray-600">Rules are stored in <code class="bg-surface-800 px-1.5 py-0.5 rounded text-[11px] text-gray-300">~/.claw-vault/rules.yaml</code> and applied before the built-in guard matrix.</p>
+                        <div class="flex items-center gap-2">
+                            <button onclick="loadRules()" class="px-3 py-1.5 text-[11px] font-medium bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg">Reset</button>
+                            <button onclick="saveRules()" class="px-3 py-1.5 text-[11px] font-semibold bg-vault-600 hover:bg-vault-500 text-white rounded-lg">Save Rules</button>
+                        </div>
+                    </div>
+                    <div id="rules-list" class="mt-4 space-y-2">
+                        <!-- populated by JS for per-rule overview and delete -->
                     </div>
                 </div>
             </section>
@@ -399,6 +447,7 @@ let currentTab = 'dashboard';
 let scanHistory = [];
 let agents = [];
 let detectionConfig = {};
+let currentRules = [];
 
 // ===================== API =====================
 async function api(path, opts = {}) {
@@ -698,6 +747,8 @@ async function loadDetectionConfig() {
         const toggle = document.getElementById('auto-sanitize-toggle');
         if (toggle) toggle.checked = guard.auto_sanitize !== false;
     }
+    // Load custom rules YAML into editor
+    await loadRules();
 }
 
 async function updateGuardMode(mode) {
@@ -743,6 +794,161 @@ function renderConfigToggles() {
         if (info.group === 'sensitive') sensitiveEl.innerHTML += html;
         else threatEl.innerHTML += html;
     }
+}
+
+// ===================== Custom Rules (Rule Engine) =====================
+async function loadRules() {
+    const editor = document.getElementById('rules-yaml-editor');
+    if (!editor) return;
+    const rules = await api('/config/rules');
+    if (rules && Array.isArray(rules)) {
+        currentRules = rules;
+        try {
+            editor.value = jsyaml.dump(rules, { noRefs: true, lineWidth: 120 });
+        } catch (e) {
+            console.error('YAML dump failed:', e);
+            editor.value = '';
+        }
+        renderRulesList(rules);
+        return;
+    }
+    // Provide a small starter template to guide the user
+    const template = [
+        {
+            id: 'block-injections',
+            name: 'Block all prompt injections',
+            enabled: true,
+            action: 'block',
+            when: { has_injections: true },
+        },
+    ];
+    currentRules = template;
+    editor.value = jsyaml.dump(template, { noRefs: true, lineWidth: 120 });
+    renderRulesList(template);
+}
+
+async function saveRules() {
+    const editor = document.getElementById('rules-yaml-editor');
+    if (!editor) return;
+    let parsed;
+    const raw = editor.value.trim();
+    if (!raw) {
+        parsed = [];
+    } else {
+        try {
+            parsed = jsyaml.load(raw) || [];
+        } catch (e) {
+            alert('Failed to parse rules YAML: ' + e.message);
+            return;
+        }
+    }
+    if (!Array.isArray(parsed)) {
+        alert('Rules YAML must be a sequence (list) of rule objects.');
+        return;
+    }
+    const payload = { rules: parsed };
+    const saved = await api('/config/rules', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    if (saved) {
+        currentRules = saved;
+        try {
+            editor.value = jsyaml.dump(saved, { noRefs: true, lineWidth: 120 });
+        } catch (e) {
+            console.error('YAML dump failed after save:', e);
+        }
+        renderRulesList(saved);
+    }
+}
+
+function insertRuleTemplate() {
+    const editor = document.getElementById('rules-yaml-editor');
+    if (!editor) return;
+    const templateYaml = `- id: block-injections
+  name: Block all prompt injections
+  description: Strictly block any request that contains injection patterns.
+  enabled: true
+  action: block
+  when:
+    has_injections: true
+- id: sanitize-high-risk-sensitive
+  name: Sanitize high-risk sensitive data
+  description: Automatically sanitize sensitive data when risk score >= 7.0
+  enabled: true
+  action: sanitize
+  when:
+    has_sensitive: true
+    min_risk_score: 7.0
+- id: warn-dangerous-commands
+  name: Warn on dangerous commands
+  description: Flag dangerous shell commands but let the guard mode decide final blocking.
+  enabled: true
+  action: ask_user
+  when:
+    has_commands: true
+`;
+    editor.value = templateYaml;
+    try {
+        const parsed = jsyaml.load(templateYaml) || [];
+        if (Array.isArray(parsed)) {
+            currentRules = parsed;
+            renderRulesList(parsed);
+        }
+    } catch (e) {
+        console.error('Failed to parse inserted YAML template:', e);
+    }
+}
+
+function renderRulesList(rules) {
+    const container = document.getElementById('rules-list');
+    if (!container) return;
+    if (!rules || !rules.length) {
+        container.innerHTML = '<div class="text-[11px] text-gray-600">No custom rules defined. Use YAML above to add rules.</div>';
+        return;
+    }
+    container.innerHTML = rules.map((r, idx) => {
+        const status = r.enabled === false ? 'Disabled' : 'Enabled';
+        const statusColor = r.enabled === false ? 'bg-gray-500/10 text-gray-400' : 'bg-vault-500/10 text-vault-400';
+        const action = r.action || 'allow';
+        const when = r.when || {};
+        const condParts = [];
+        if (when.has_injections !== undefined) condParts.push(`has_injections=${when.has_injections}`);
+        if (when.has_sensitive !== undefined) condParts.push(`has_sensitive=${when.has_sensitive}`);
+        if (when.has_commands !== undefined) condParts.push(`has_commands=${when.has_commands}`);
+        if (when.min_risk_score !== undefined) condParts.push(`min_risk_score>=${when.min_risk_score}`);
+        if (when.threat_levels) condParts.push(`levels=${(when.threat_levels || []).join('|')}`);
+        if (when.pattern_types) condParts.push(`patterns=${(when.pattern_types || []).join('|')}`);
+        const condText = condParts.length ? condParts.join(', ') : 'Always';
+        return `
+        <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-950 border border-gray-800/70">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-white truncate max-w-xs">${escHtml(r.name || r.id || 'Unnamed rule')}</span>
+                    <span class="badge ${statusColor}">${status}</span>
+                    <span class="badge bg-blue-500/10 text-blue-400 uppercase">${escHtml(action)}</span>
+                </div>
+                <div class="text-[11px] text-gray-500 mt-0.5 truncate max-w-xl">${escHtml(condText)}</div>
+            </div>
+            <button onclick="deleteRule(${idx})" class="ml-3 px-2 py-1 text-[11px] text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg">Delete</button>
+        </div>`;
+    }).join('');
+}
+
+function deleteRule(index) {
+    if (!Array.isArray(currentRules) || index < 0 || index >= currentRules.length) return;
+    const next = currentRules.slice();
+    next.splice(index, 1);
+    currentRules = next;
+    const editor = document.getElementById('rules-yaml-editor');
+    if (editor) {
+        try {
+            editor.value = jsyaml.dump(next, { noRefs: true, lineWidth: 120 });
+        } catch (e) {
+            console.error('YAML dump failed on delete:', e);
+        }
+    }
+    renderRulesList(next);
 }
 
 async function updateConfig(key, value) {
