@@ -1,7 +1,7 @@
 """Persistence and data models for custom guard rules.
 
 Rules are stored in a YAML file under the ClawVault config directory:
-`~/.claw-vault/rules.yaml`.
+`~/.ClawVault/rules.yaml`.
 
 The format is intentionally simple and human-friendly, for example:
 

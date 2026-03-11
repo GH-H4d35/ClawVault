@@ -26,7 +26,7 @@ class RuleEngine:
     def __init__(self, mode: str = "interactive", auto_sanitize: bool = True) -> None:
         self._mode = mode
         self._auto_sanitize = auto_sanitize
-        # Custom rules loaded from ~/.claw-vault/rules.yaml
+        # Custom rules loaded from ~/.ClawVault/rules.yaml
         # The dashboard can update this at runtime.
         self._rules: list[RuleConfig] = load_rules()
 
