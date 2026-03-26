@@ -17,6 +17,10 @@
 
 **[English](./README.md)** | **[中文](./README.zh-CN.md)**
 
+<div align="center">
+  <img src="./doc/images/cartoon_zh-cn.png" alt="ClawVault 漫画" width="800"/>
+</div>
+
 ## 🎯 ClawVault 适合你，如果你
 
 - ✅ 你希望**可视化监控** AI 代理和模型调用

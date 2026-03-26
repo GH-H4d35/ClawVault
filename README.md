@@ -16,6 +16,10 @@
 
 **[English](./README.md)** | **[中文](./README.zh-CN.md)**
 
+<div align="center">
+  <img src="./doc/images/cartoon_en.png" alt="ClawVault Cartoon" width="800"/>
+</div>
+
 ## 🎯 ClawVault is right for you if
 
 - ✅ You want **visual monitoring** of AI agents and model invocations
