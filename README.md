@@ -29,9 +29,9 @@
 - ✅ You need to detect AI injection attacks and dangerous commands
 
 Activate your personal AI Vault:
-- 1⃣ Load private files
-- 2⃣ Set up and customize your secure storage
-- 3⃣ Create remote management skills
+- 1️⃣ Load private files
+- 2️⃣ Set up and customize your secure storage
+- 3️⃣ Create remote management skills
 
 ### Effect
 
