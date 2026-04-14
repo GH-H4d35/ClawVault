@@ -95,6 +95,8 @@ The vault includes a **transparent proxy gateway module** that intercepts traffi
 
 ## 🚀 Quick Start
 
+https://github.com/user-attachments/assets/1f424172-8833-4ccc-b0d2-abf67c1758dd
+
 ### Option 1: Install as OpenClaw Skill (Recommended)
 
 ```bash
