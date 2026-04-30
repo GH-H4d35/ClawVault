@@ -1,4 +1,5 @@
 """Tests for the ClawVault installer Skill."""
+# ruff: noqa: S101
 
 from __future__ import annotations
 
@@ -11,7 +12,6 @@ import yaml
 from claw_vault.skills.clawvault_installer import (
     CLAWVAULT_GITHUB_REF,
     CLAWVAULT_GITHUB_SPEC,
-    CLAWVAULT_PIP_SPEC,
     DEFAULT_DASHBOARD_HOST,
     ClawVaultInstallerSkill,
 )
@@ -31,7 +31,7 @@ class _RunRecorder:
         return subprocess.CompletedProcess(command, returncode, stdout="", stderr=stderr)
 
 
-def test_install_package_uses_pinned_pypi_spec(monkeypatch):
+def test_install_package_uses_latest_github_source(monkeypatch):
     skill = ClawVaultInstallerSkill()
     recorder = _RunRecorder([0])
     monkeypatch.setattr(subprocess, "run", recorder)
@@ -40,36 +40,24 @@ def test_install_package_uses_pinned_pypi_spec(monkeypatch):
     result = skill._install_package()
 
     assert result["success"] is True
-    assert result["source"] == "pypi"
-    assert result["spec"] == CLAWVAULT_PIP_SPEC
-    assert recorder.calls[0][-1] == CLAWVAULT_PIP_SPEC
-
-
-def test_install_package_falls_back_to_pinned_github_ref(monkeypatch):
-    skill = ClawVaultInstallerSkill()
-    recorder = _RunRecorder([1, 0], ["pypi unavailable", ""])
-    monkeypatch.setattr(subprocess, "run", recorder)
-    monkeypatch.setattr(skill, "_get_installed_version", lambda: "0.1.0")
-
-    result = skill._install_package()
-
-    assert result["success"] is True
-    assert result["source"] == "github"
+    assert result["source"] == "github_latest"
     assert result["spec"] == CLAWVAULT_GITHUB_SPEC
-    assert result["github_ref"] == CLAWVAULT_GITHUB_REF
-    assert recorder.calls[1][-1] == CLAWVAULT_GITHUB_SPEC
+    assert result["github_ref"] == CLAWVAULT_GITHUB_REF == "main"
+    assert recorder.calls == [
+        [subprocess.sys.executable, "-m", "pip", "install", CLAWVAULT_GITHUB_SPEC]
+    ]
 
 
-def test_install_package_reports_all_failed_attempts(monkeypatch):
+def test_install_package_reports_github_latest_failure(monkeypatch):
     skill = ClawVaultInstallerSkill()
-    recorder = _RunRecorder([1, 1], ["pypi failed", "github failed"])
+    recorder = _RunRecorder([1], ["github failed"])
     monkeypatch.setattr(subprocess, "run", recorder)
 
     result = skill._install_package()
 
     assert result["success"] is False
-    assert CLAWVAULT_PIP_SPEC in result["attempts"][0]["command"]
-    assert CLAWVAULT_GITHUB_SPEC in result["attempts"][1]["command"]
+    assert result["attempts"][0]["source"] == "github_latest"
+    assert result["attempts"][0]["command"][-1] == CLAWVAULT_GITHUB_SPEC
     assert result["stderr"] == "github failed"
 
 
