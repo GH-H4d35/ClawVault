@@ -1,6 +1,6 @@
 {
   "name": "tophant-clawvault-installer",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "AI security system that protects agents from prompt injection, data leakage, and dangerous commands. Operates as local HTTP proxy to inspect traffic. Review SECURITY.md before installing.",
   "author": "Tophant SPAI Lab",
   "homepage": "https://github.com/tophant-ai/ClawVault",

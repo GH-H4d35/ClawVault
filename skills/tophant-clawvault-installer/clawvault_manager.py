@@ -36,7 +36,7 @@ REPO_URL = "https://github.com/tophant-ai/ClawVault"
 CLAWVAULT_GITHUB_REF = "main"
 CLAWVAULT_GITHUB_SPEC = f"git+{REPO_URL}.git@{CLAWVAULT_GITHUB_REF}"
 DEFAULT_DASHBOARD_HOST = "127.0.0.1"
-VERSION = "0.2.11"
+VERSION = "0.2.12"
 
 
 class ClawVaultManager:
@@ -333,27 +333,24 @@ class ClawVaultManager:
         """Load config.example.yaml from the installed package, or use inline default."""
         import yaml
 
-        # Try package location
+        # Try package helper in the installed venv first. This works for pip,
+        # GitHub, and wheel installs as long as package data is included.
         if self.venv_python.exists():
             try:
                 result = subprocess.run(
                     [
                         str(self.venv_python),
                         "-c",
-                        "import claw_vault; from pathlib import Path; "
-                        "print(Path(claw_vault.__file__).parent.parent.parent)",
+                        "from claw_vault.config_template import get_default_config_text; "
+                        "print(get_default_config_text())",
                     ],
                     capture_output=True,
                     text=True,
                 )
-                if result.returncode == 0:
-                    pkg_root = Path(result.stdout.strip())
-                    template = pkg_root / "config.example.yaml"
-                    if template.exists():
-                        with open(template) as f:
-                            cfg = yaml.safe_load(f)
-                        if cfg:
-                            return cfg
+                if result.returncode == 0 and result.stdout.strip():
+                    cfg = yaml.safe_load(result.stdout)
+                    if cfg:
+                        return cfg
             except Exception:
                 pass
 
@@ -422,6 +419,7 @@ class ClawVaultManager:
             "file_monitor": {
                 "enabled": True,
                 "watch_home_sensitive": True,
+                "watch_project_sensitive": True,
                 "watch_patterns": [
                     ".env",
                     ".env.*",

@@ -71,6 +71,13 @@ def test_initialize_config_uses_localhost_dashboard(monkeypatch, tmp_path):
     config = yaml.safe_load(Path(result["config_path"]).read_text())
     assert config["dashboard"]["host"] == DEFAULT_DASHBOARD_HOST
     assert config["proxy"]["host"] == "127.0.0.1"
+    assert config["proxy"]["ssl_verify"] is False
+    assert config["guard"]["mode"] == "interactive"
+    assert config["file_monitor"]["watch_project_sensitive"] is True
+    assert "audit" in config
+    assert "openclaw" in config
+    assert "cloud" in config
+    assert "check_sensitive" not in config["detection"]
 
 
 def test_install_clawvault_fails_when_config_initialization_fails(monkeypatch):

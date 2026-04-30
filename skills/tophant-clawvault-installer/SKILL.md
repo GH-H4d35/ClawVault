@@ -1,6 +1,6 @@
 ---
 name: tophant-clawvault-installer
-version: 0.2.11
+version: 0.2.12
 description: Install, configure, test, and uninstall ClawVault AI security proxy
 homepage: https://github.com/tophant-ai/ClawVault
 user-invocable: true

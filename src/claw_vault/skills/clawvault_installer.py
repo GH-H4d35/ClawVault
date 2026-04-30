@@ -662,55 +662,26 @@ class ClawVaultInstallerSkill(BaseSkill):
 
             config_path = config_dir / "config.yaml"
 
-            # Generate default config
+            # Generate default config from the canonical package template
             import yaml
 
-            default_config = {
-                "proxy": {
-                    "host": "127.0.0.1",
-                    "port": 8765,
-                    "ssl_verify": False,
-                    "intercept_hosts": [
-                        "api.openai.com",
-                        "api.anthropic.com",
-                        "api.siliconflow.cn",
-                        "*.openai.azure.com",
-                        "generativelanguage.googleapis.com",
-                        "openrouter.ai",
-                        "dashscope.aliyuncs.com",
-                        "ark.cn-beijing.volces.com",
-                        "api.deepseek.com",
-                        "api.moonshot.cn",
-                    ],
-                },
-                "guard": {
-                    "mode": "interactive" if mode == "quick" else "strict",
-                    "auto_sanitize": True,
-                },
-                "detection": {
-                    "enabled": True,
-                    "check_sensitive": True,
-                    "check_injections": True,
-                    "check_commands": True,
-                },
-                "monitor": {
-                    "daily_token_budget": 50000,
-                },
-                "dashboard": {
-                    "enabled": True,
-                    "host": DEFAULT_DASHBOARD_HOST,
-                    "port": 8766,
-                },
-                "rules": [],
-                "agents": {
-                    "version": "1.0",
-                    "entries": {},
-                },
-                "vaults": {
-                    "version": "1.0",
-                    "presets": [],
-                },
-            }
+            from claw_vault.config_template import get_default_config
+
+            default_config = get_default_config()
+
+            guard = default_config.setdefault("guard", {})
+            if mode == "quick":
+                guard["mode"] = "interactive"
+                guard["auto_sanitize"] = True
+            elif mode == "advanced":
+                guard["mode"] = "strict"
+                guard["auto_sanitize"] = True
+            else:
+                guard["mode"] = "interactive"
+                guard["auto_sanitize"] = False
+
+            default_config.setdefault("proxy", {})["ssl_verify"] = False
+            default_config.setdefault("dashboard", {})["host"] = DEFAULT_DASHBOARD_HOST
 
             # Merge custom config
             if config:

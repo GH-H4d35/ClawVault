@@ -8,6 +8,8 @@ import subprocess
 import time
 from pathlib import Path
 
+import yaml
+
 MODULE_PATH = (
     Path(__file__).resolve().parents[2]
     / "skills"
@@ -136,6 +138,71 @@ def test_install_configures_gateway_proxy_by_default(monkeypatch):
     assert result["install_source"] == "github_latest"
     assert result["install_spec"] == manager_module.CLAWVAULT_GITHUB_SPEC
     assert install_calls == [(manager_module.CLAWVAULT_GITHUB_SPEC,)]
+
+
+def test_load_config_template_from_venv_helper(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    manager = ClawVaultManager()
+    manager.venv_python.parent.mkdir(parents=True)
+    manager.venv_python.write_text("#!/usr/bin/env python\n")
+
+    template = """
+proxy:
+  host: 127.0.0.1
+  ssl_verify: true
+detection:
+  enabled: true
+  api_keys: true
+guard:
+  mode: permissive
+monitor: {}
+audit: {}
+dashboard: {}
+cloud: {}
+openclaw: {}
+file_monitor:
+  watch_project_sensitive: true
+rules: []
+agents: {}
+vaults: {}
+"""
+
+    def fake_run(command, **kwargs):
+        assert "claw_vault.config_template" in command[-1]
+        return subprocess.CompletedProcess(command, 0, stdout=template, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    config = manager._load_config_template()
+
+    assert config["file_monitor"]["watch_project_sensitive"] is True
+    assert "audit" in config
+    assert "openclaw" in config
+
+
+def test_default_config_fallback_contains_full_sections():
+    config = ClawVaultManager()._default_config()
+
+    assert config["file_monitor"]["watch_project_sensitive"] is True
+    assert "audit" in config
+    assert "openclaw" in config
+    assert "cloud" in config
+    assert "vaults" in config
+
+
+def test_initialize_config_writes_full_config(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    manager = ClawVaultManager()
+
+    result = manager.initialize_config("quick")
+
+    assert result["success"] is True
+    config = yaml.safe_load(Path(result["config_path"]).read_text())
+    assert config["file_monitor"]["watch_project_sensitive"] is True
+    assert config["proxy"]["ssl_verify"] is False
+    assert config["guard"]["mode"] == "interactive"
+    assert "audit" in config
+    assert "openclaw" in config
 
 
 def test_unconfigure_proxy_removes_proxy_env_without_restart(monkeypatch, tmp_path):
