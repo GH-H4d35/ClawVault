@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import re
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 import structlog
 
@@ -33,7 +32,7 @@ class TokenUsage:
     total_tokens: int = 0
     cost_usd: float = 0.0
     model: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class TokenCounter:
@@ -75,7 +74,7 @@ class TokenCounter:
             model=model,
         )
 
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
 
         with self._lock:
             if today not in self._daily_usage:
@@ -103,7 +102,7 @@ class TokenCounter:
         return usage
 
     def get_today_usage(self) -> TokenUsage:
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         with self._lock:
             return self._daily_usage.get(today, TokenUsage())
 

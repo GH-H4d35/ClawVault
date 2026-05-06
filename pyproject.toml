@@ -60,6 +60,7 @@ Issues = "https://github.com/tophant-ai/ClawVault/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claw_vault"]
+artifacts = ["src/claw_vault/config.example.yaml"]
 
 [tool.ruff]
 target-version = "py311"
