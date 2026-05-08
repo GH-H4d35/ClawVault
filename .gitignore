@@ -34,6 +34,7 @@ audit.db
 # Config with secrets
 config.yaml
 !config.example.yaml
+push.sh
 
 # OS
 .DS_Store
@@ -55,3 +56,9 @@ doc/develop
 .claude
 .qodo
 .windsurf
+
+# AI-related files
+CLAUDE.md
+HANDOFF.md
+ISSUES.md
+.clawhub/
