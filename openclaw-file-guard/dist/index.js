@@ -1,0 +1,313 @@
+// src/config-client.ts
+import axios from "axios";
+var DEFAULT_WATCH_PATHS = [
+  ".ssh/**",
+  ".aws/credentials",
+  ".aws/config",
+  ".gnupg/**",
+  ".kube/config"
+];
+var DEFAULT_WATCH_PATTERNS = ["id_rsa*", "id_ed25519*", "*.pem", ".env*"];
+var ConfigClient = class {
+  constructor(config, logger) {
+    this.config = config;
+    this.logger = logger;
+    this.http = axios.create({
+      baseURL: config.clawvaultUrl.replace(/\/+$/, ""),
+      timeout: config.requestTimeoutMs
+    });
+    this.rules = {
+      watchPaths: [...DEFAULT_WATCH_PATHS, ...config.extraPaths],
+      watchPatterns: [...DEFAULT_WATCH_PATTERNS],
+      extensions: [...config.extraExtensions]
+    };
+  }
+  config;
+  logger;
+  rules;
+  timer = null;
+  http;
+  getRules() {
+    return this.rules;
+  }
+  async refreshOnce() {
+    try {
+      const res = await this.http.get("/api/config/file-monitor");
+      const data = res.data ?? {};
+      const watchPaths = Array.isArray(data.watch_paths) ? data.watch_paths.filter((s) => typeof s === "string") : [];
+      const watchPatterns = Array.isArray(data.watch_patterns) ? data.watch_patterns.filter((s) => typeof s === "string") : [];
+      this.rules = {
+        watchPaths: [...watchPaths, ...this.config.extraPaths],
+        watchPatterns,
+        extensions: [...this.config.extraExtensions]
+      };
+      this.logger.debug(
+        `config refreshed: ${watchPaths.length} paths, ${watchPatterns.length} patterns`
+      );
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`config refresh failed, keeping previous rules: ${msg}`);
+      return false;
+    }
+  }
+  start() {
+    void this.refreshOnce();
+    if (this.timer) return;
+    const intervalMs = Math.max(5e3, this.config.refreshIntervalSeconds * 1e3);
+    this.timer = setInterval(() => void this.refreshOnce(), intervalMs);
+    if (typeof this.timer.unref === "function") this.timer.unref();
+  }
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+};
+
+// src/reporter.ts
+import axios2 from "axios";
+var Reporter = class {
+  constructor(config, logger) {
+    this.config = config;
+    this.logger = logger;
+    this.http = axios2.create({
+      baseURL: config.clawvaultUrl.replace(/\/+$/, ""),
+      timeout: config.requestTimeoutMs
+    });
+  }
+  config;
+  logger;
+  http;
+  async report(event) {
+    try {
+      await this.http.post("/api/events/external", event);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`report to ClawVault failed: ${msg}`);
+    }
+  }
+};
+
+// src/path-detector.ts
+import * as path from "path";
+import os from "os";
+import picomatch from "picomatch";
+var CANDIDATE_PARAM_KEYS = [
+  "path",
+  "file",
+  "file_path",
+  "filename",
+  "filepath",
+  "src",
+  "source",
+  "target",
+  "dst",
+  "destination",
+  "input_file",
+  "output_file",
+  "input",
+  "output"
+];
+var SHELL_LIKE_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "shell",
+  "sh",
+  "exec",
+  "execute",
+  "run_command",
+  "run",
+  "cmd",
+  "terminal",
+  "process",
+  "computer"
+]);
+var FILE_READ_TOOLS = /* @__PURE__ */ new Set([
+  "read",
+  "read_file",
+  "open",
+  "cat",
+  "view",
+  "view_file",
+  "load",
+  "fetch_file"
+]);
+var FILE_WRITE_TOOLS = /* @__PURE__ */ new Set([
+  "write",
+  "write_file",
+  "edit",
+  "edit_file",
+  "append",
+  "save"
+]);
+function normalizeHome(p) {
+  if (p.startsWith("~/") || p === "~") {
+    return path.join(os.homedir(), p.slice(1));
+  }
+  return p;
+}
+function looksLikePath(token) {
+  if (!token) return false;
+  if (token.length < 2) return false;
+  if (token.startsWith("-")) return false;
+  return token.startsWith("/") || token.startsWith("~/") || token.startsWith("./") || token.startsWith("../") || /\.[A-Za-z0-9]{1,8}$/.test(token) || /\/[^\s]+/.test(token);
+}
+function splitShellArgs(cmd) {
+  const tokens = [];
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let m;
+  while ((m = re.exec(cmd)) !== null) {
+    tokens.push(m[1] ?? m[2] ?? m[3] ?? "");
+  }
+  return tokens;
+}
+function extractCandidatePaths(toolName, params) {
+  const out = /* @__PURE__ */ new Set();
+  const lowerTool = (toolName || "").toLowerCase();
+  for (const key of CANDIDATE_PARAM_KEYS) {
+    const v = params[key];
+    if (typeof v === "string" && v.trim()) out.add(normalizeHome(v.trim()));
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (typeof item === "string" && item.trim()) {
+          out.add(normalizeHome(item.trim()));
+        }
+      }
+    }
+  }
+  if (SHELL_LIKE_TOOLS.has(lowerTool)) {
+    const cmd = params.command ?? params.cmd ?? params.script ?? "";
+    if (typeof cmd === "string" && cmd) {
+      for (const tok of splitShellArgs(cmd)) {
+        if (looksLikePath(tok)) out.add(normalizeHome(tok));
+      }
+    }
+  }
+  if (FILE_READ_TOOLS.has(lowerTool) || FILE_WRITE_TOOLS.has(lowerTool)) {
+    for (const v of Object.values(params)) {
+      if (typeof v === "string" && looksLikePath(v)) {
+        out.add(normalizeHome(v.trim()));
+      }
+    }
+  }
+  return [...out];
+}
+function basename(p) {
+  const idx = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return idx >= 0 ? p.slice(idx + 1) : p;
+}
+function matchPath(candidate, rules) {
+  const lower = candidate.toLowerCase();
+  for (const ext of rules.extensions) {
+    if (!ext) continue;
+    const e = ext.startsWith(".") ? ext.toLowerCase() : "." + ext.toLowerCase();
+    if (lower.endsWith(e)) return `ext:${e}`;
+  }
+  const globs = [...rules.watchPaths, ...rules.watchPatterns];
+  for (const g of globs) {
+    if (!g) continue;
+    const hasSlash = g.includes("/");
+    const anchored = g.startsWith("/") || g.startsWith("**");
+    const opts = { dot: true, basename: !hasSlash };
+    const matchers = [picomatch(g, opts)];
+    if (hasSlash && !anchored) {
+      matchers.push(picomatch("**/" + g, opts));
+    }
+    const base = basename(candidate);
+    for (const m of matchers) {
+      if (m(candidate) || m(base)) return g;
+    }
+  }
+  return null;
+}
+function detect(toolName, params, rules) {
+  for (const candidate of extractCandidatePaths(toolName, params)) {
+    const matched = matchPath(candidate, rules);
+    if (matched) return { path: candidate, matchedRule: matched };
+  }
+  return null;
+}
+
+// index.ts
+function readConfig(api) {
+  const raw = {
+    ...api.config ?? {},
+    ...api.pluginConfig ?? {}
+  };
+  const get = (key, fallback) => raw[key] !== void 0 ? raw[key] : fallback;
+  return {
+    clawvaultUrl: get("clawvaultUrl", "http://127.0.0.1:8766"),
+    mode: get("mode", "log"),
+    extraPaths: get("extraPaths", []),
+    extraExtensions: get("extraExtensions", [
+      ".pem",
+      ".key",
+      ".p12",
+      ".pfx",
+      ".kdbx"
+    ]),
+    refreshIntervalSeconds: get("refreshIntervalSeconds", 30),
+    requestTimeoutMs: get("requestTimeoutMs", 2e3)
+  };
+}
+function register(api) {
+  const logger = api.logger;
+  const runtimeCfg = readConfig(api);
+  logger.info(
+    `[file-guard] starting, clawvault=${runtimeCfg.clawvaultUrl} mode=${runtimeCfg.mode}`
+  );
+  const configClient = new ConfigClient(runtimeCfg, logger);
+  const reporter = new Reporter(runtimeCfg, logger);
+  api.on("gateway_start", async () => {
+    configClient.start();
+    logger.info("[file-guard] ready");
+  });
+  api.on(
+    "before_tool_call",
+    async (rawEvent, ctx) => {
+      try {
+        const event = rawEvent;
+        if (!event || typeof event.toolName !== "string") return;
+        const params = event.params ?? {};
+        const rules = configClient.getRules();
+        const hit = detect(event.toolName, params, rules);
+        if (!hit) return;
+        const action = runtimeCfg.mode === "strict" ? "block" : "log";
+        const severity = action === "block" ? "high" : "medium";
+        const message = action === "block" ? `Blocked tool call '${event.toolName}' targeting sensitive path` : `Logged tool call '${event.toolName}' targeting sensitive path`;
+        void reporter.report({
+          source: "openclaw-file-guard",
+          category: action === "block" ? "file_access_blocked" : "file_access_logged",
+          threat_level: severity,
+          action,
+          tool_name: event.toolName,
+          file_path: hit.path,
+          matched_rule: hit.matchedRule,
+          agent_id: ctx?.agentId,
+          session_id: ctx?.sessionId ?? ctx?.sessionKey,
+          message,
+          risk_score: action === "block" ? 8.5 : 6
+        });
+        if (action === "block") {
+          logger.warn(
+            `[file-guard] BLOCK ${event.toolName} ${hit.path} (rule=${hit.matchedRule})`
+          );
+          return {
+            block: true,
+            blockReason: `ClawVault file-guard: sensitive path '${hit.path}' (rule ${hit.matchedRule})`
+          };
+        }
+        logger.info(
+          `[file-guard] LOG ${event.toolName} ${hit.path} (rule=${hit.matchedRule})`
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`[file-guard] handler error: ${msg}`);
+      }
+    }
+  );
+}
+export {
+  register as default
+};

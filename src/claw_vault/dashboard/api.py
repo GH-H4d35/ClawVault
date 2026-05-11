@@ -256,6 +256,29 @@ class RulesPayload(BaseModel):
     rules: list[dict] = Field(default_factory=list)
 
 
+class ExternalEventPayload(BaseModel):
+    """Event pushed by an external plugin (e.g. OpenClaw file-guard plugin).
+
+    Fields mirror the shape of entries already stored in `_scan_history` so the
+    dashboard Events tab renders plugin events alongside proxy and file-monitor
+    events; the UI differentiates purely by the `source` tag.
+    """
+
+    source: str = Field(default="plugin")
+    category: str | None = None
+    threat_level: str = Field(default="medium")
+    action: str = Field(default="log")
+    tool_name: str | None = None
+    file_path: str | None = None
+    matched_rule: str | None = None
+    agent_id: str | None = None
+    agent_name: str | None = None
+    session_id: str | None = None
+    message: str | None = None
+    timestamp: str | None = None
+    risk_score: float = Field(default=5.0)
+
+
 @router.get("/health")
 async def health():
     openclaw_session_redaction = {
@@ -1340,6 +1363,106 @@ async def get_file_monitor_events(limit: int = Query(default=50, le=200)):
 async def get_file_monitor_alerts(limit: int = Query(default=50, le=100)):
     """Get recent file monitor alerts."""
     return _file_monitor_alerts[:limit]
+
+
+# --------------- External Plugin Events ---------------
+
+
+def push_external_event(payload: ExternalEventPayload) -> dict:
+    """Insert an external plugin event into the unified events feed.
+
+    Mirrors push_proxy_event / push_file_monitor_event so the dashboard Events
+    tab renders plugin events uniformly — UI differentiates by `source`.
+    """
+    import datetime as _dt
+
+    ts = payload.timestamp
+    if not ts:
+        ts = (
+            _dt.datetime.now(_dt.timezone.utc)
+            .strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+            + "Z"
+        )
+
+    event_id = str(uuid.uuid4())
+
+    preview_parts: list[str] = []
+    if payload.tool_name:
+        preview_parts.append(f"[{payload.tool_name.upper()}]")
+    if payload.file_path:
+        preview_parts.append(payload.file_path)
+    if payload.matched_rule:
+        preview_parts.append(f"(rule: {payload.matched_rule})")
+    input_preview = (
+        " ".join(preview_parts)
+        or payload.message
+        or payload.category
+        or "plugin event"
+    )
+
+    has_threats = (
+        payload.action in {"block", "ask_user", "sanitize"}
+        or payload.threat_level in {"high", "critical"}
+    )
+
+    detection_items: list[dict] = []
+    if payload.category:
+        detection_items.append(
+            {
+                "type": payload.category,
+                "description": payload.message or payload.category,
+                "masked": "",
+                "risk": payload.risk_score,
+            }
+        )
+
+    scan_entry = {
+        "id": event_id,
+        "timestamp": ts,
+        "source": payload.source or "plugin",
+        "agent_id": payload.agent_id,
+        "agent_name": payload.agent_name,
+        "session_id": payload.session_id,
+        "input_preview": input_preview,
+        "action": payload.action,
+        "has_threats": has_threats,
+        "threat_level": payload.threat_level,
+        "max_risk_score": payload.risk_score,
+        "total_detections": len(detection_items),
+        "sensitive": detection_items,
+        "commands": [],
+        "injections": [],
+        "tool_calls": [],
+        "tool_call_count": 0,
+        "message_count": 0,
+    }
+    _scan_history.insert(0, scan_entry)
+    if len(_scan_history) > 500:
+        _scan_history.pop()
+
+    _analysis_log.insert(
+        0,
+        {
+            "ts": ts,
+            "level": "warn" if has_threats else "info",
+            "message": f"[PLUGIN {payload.action.upper()}] {input_preview}",
+        },
+    )
+    if len(_analysis_log) > 200:
+        _analysis_log.pop()
+
+    return {"ok": True, "event_id": event_id}
+
+
+@router.post("/events/external")
+async def receive_external_event(payload: ExternalEventPayload) -> dict:
+    """Receive an event from an external plugin and surface it in the dashboard.
+
+    Plugins (e.g. OpenClaw file-guard) POST here after they intercept at a layer
+    the core proxy cannot see (tool_call layer). The event joins the unified
+    events feed and is tagged by `source`.
+    """
+    return push_external_event(payload)
 
 
 # --------------- File Monitor Config ---------------

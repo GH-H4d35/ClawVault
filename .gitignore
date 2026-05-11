@@ -34,10 +34,17 @@ audit.db
 # Config with secrets
 config.yaml
 !config.example.yaml
+push.sh
 
 # OS
 .DS_Store
 Thumbs.db
+
+# JavaScript / Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Rust (Phase 3)
 target/
@@ -49,3 +56,9 @@ doc/develop
 .claude
 .qodo
 .windsurf
+
+# AI-related files
+CLAUDE.md
+HANDOFF.md
+ISSUES.md
+.clawhub/

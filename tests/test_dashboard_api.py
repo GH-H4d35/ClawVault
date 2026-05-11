@@ -12,6 +12,105 @@ from claw_vault.config import Settings
 from claw_vault.dashboard import api as dashboard_api
 
 
+def test_push_external_event_inserts_scan_history_with_plugin_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dashboard_api, "_scan_history", [])
+    monkeypatch.setattr(dashboard_api, "_analysis_log", [])
+
+    payload = dashboard_api.ExternalEventPayload(
+        source="plugin",
+        category="file_access_blocked",
+        threat_level="high",
+        action="block",
+        tool_name="read",
+        file_path="/home/user/.ssh/id_rsa",
+        matched_rule=".ssh/**",
+        agent_id="openclaw",
+        message="blocked sensitive path",
+        risk_score=9.0,
+    )
+
+    result = dashboard_api.push_external_event(payload)
+
+    assert result["ok"] is True
+    assert len(dashboard_api._scan_history) == 1
+    entry = dashboard_api._scan_history[0]
+    assert entry["source"] == "plugin"
+    assert entry["action"] == "block"
+    assert entry["threat_level"] == "high"
+    assert entry["has_threats"] is True
+    assert entry["agent_id"] == "openclaw"
+    assert "/home/user/.ssh/id_rsa" in entry["input_preview"]
+    assert "[READ]" in entry["input_preview"]
+    assert "(rule: .ssh/**)" in entry["input_preview"]
+    assert len(entry["sensitive"]) == 1
+    assert entry["sensitive"][0]["type"] == "file_access_blocked"
+
+    assert len(dashboard_api._analysis_log) == 1
+    log_entry = dashboard_api._analysis_log[0]
+    assert log_entry["level"] == "warn"
+    assert "[PLUGIN BLOCK]" in log_entry["message"]
+
+
+def test_push_external_event_log_mode_does_not_flag_threats(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dashboard_api, "_scan_history", [])
+    monkeypatch.setattr(dashboard_api, "_analysis_log", [])
+
+    payload = dashboard_api.ExternalEventPayload(
+        source="plugin",
+        action="log",
+        threat_level="low",
+        tool_name="read",
+        file_path="/tmp/foo",
+    )
+    dashboard_api.push_external_event(payload)
+
+    entry = dashboard_api._scan_history[0]
+    assert entry["has_threats"] is False
+    assert entry["action"] == "log"
+    assert dashboard_api._analysis_log[0]["level"] == "info"
+
+
+def test_push_external_event_uses_timestamp_when_provided(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dashboard_api, "_scan_history", [])
+    monkeypatch.setattr(dashboard_api, "_analysis_log", [])
+
+    payload = dashboard_api.ExternalEventPayload(
+        timestamp="2026-05-07T12:00:00.000Z",
+        action="log",
+    )
+    dashboard_api.push_external_event(payload)
+
+    assert dashboard_api._scan_history[0]["timestamp"] == "2026-05-07T12:00:00.000Z"
+
+
+@pytest.mark.asyncio
+async def test_receive_external_event_route_surfaces_event_in_feed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dashboard_api, "_scan_history", [])
+    monkeypatch.setattr(dashboard_api, "_analysis_log", [])
+
+    payload = dashboard_api.ExternalEventPayload(
+        source="plugin",
+        action="block",
+        threat_level="critical",
+        tool_name="exec",
+        file_path="/etc/shadow",
+    )
+    result = await dashboard_api.receive_external_event(payload)
+
+    assert result["ok"] is True
+    assert "event_id" in result
+    assert len(dashboard_api._scan_history) == 1
+    assert dashboard_api._scan_history[0]["source"] == "plugin"
+
+
 def test_push_proxy_event_records_agent_and_session_ids(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dashboard_api, "_scan_history", [])
 
