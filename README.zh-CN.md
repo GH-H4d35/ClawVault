@@ -250,7 +250,7 @@ MIT © 2026 [Tophant](https://www.tophant.com/) SPAI Lab
 
 ## 🤝 社区
 **社区加入方式：**
-- Discord：加入我们的 Discord 服务器进行实时交流与协作：https://discord.gg/P4pQCQgZ
+- Discord：加入我们的 Discord 进行实时交流与协作：https://discord.gg/P4pQCQgZ
 - 微信：扫描下方二维码，发送关键词 clawvault 即可入群。
 <img width="1440" height="2988" alt="微信图片_20260518115512_35_192" src="https://github.com/user-attachments/assets/217329b1-537a-4a1f-8717-baaa2554ad92" />
 
