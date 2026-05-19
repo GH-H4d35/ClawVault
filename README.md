@@ -1,4 +1,4 @@
-<div align="center">
+<img width="1440" height="2988" alt="微信图片_20260518115512_35_192" src="https://github.com/user-attachments/assets/217329b1-537a-4a1f-8717-baaa2554ad92" /><div align="center">
   <img src="./doc/images/logo1.png" alt="ClawVault Logo" width="200"/>
   <p><strong>OpenClaw Security Vault — Atomic "claw" control: every AI reach, within your sight.</strong></p>
   <p>
@@ -247,8 +247,11 @@ MIT © 2026 [Tophant](https://www.tophant.com/)
 
 - [GitHub Issues](https://github.com/tophant-ai/ClawVault/issues) — Bug reports and feature requests
 - [Security Issues](https://github.com/tophant-ai/ClawVault/security/advisories) — Security vulnerability reports
-
+![Uploading 微信图片_20260518115512_35_192.jpg…]()
 ---
+
+
+
 
 <div align="center">
   <p><strong>🦞 Built for people who want to secure AI, not babysit agents.</strong></p>
