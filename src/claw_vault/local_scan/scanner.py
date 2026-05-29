@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import stat
 import time
@@ -51,6 +50,16 @@ _SKILL_RISK_PATTERNS: list[tuple[str, str, str, float]] = [
     (r'open\s*\(.*["\']w', "file_write", "Writes to files", 5.0),
     (r"(credentials|password|secret|api.?key)", "credential_access", "References credentials", 5.0),
 ]
+
+_COMPILED_SKILL_RISK_PATTERNS: tuple[tuple[re.Pattern[str], str, str, float], ...] = tuple(
+    (
+        re.compile(regex, re.IGNORECASE if factor == "credential_access" else 0),
+        factor,
+        desc,
+        score,
+    )
+    for regex, factor, desc, score in _SKILL_RISK_PATTERNS
+)
 
 
 class LocalScanner:
@@ -322,9 +331,8 @@ class LocalScanner:
             rel = str(py_file.relative_to(dir_path)) if py_file.is_relative_to(dir_path) else str(py_file)
 
             # Check risk patterns
-            for regex, factor, desc, score in _SKILL_RISK_PATTERNS:
-                flags = re.IGNORECASE if factor == "credential_access" else 0
-                if re.search(regex, code, flags):
+            for pattern, factor, desc, score in _COMPILED_SKILL_RISK_PATTERNS:
+                if pattern.search(code):
                     findings.append(ScanFinding(
                         file_path=rel,
                         finding_type="skill_risk",
