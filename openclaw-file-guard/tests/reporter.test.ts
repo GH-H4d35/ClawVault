@@ -5,6 +5,7 @@ import type { ExternalEvent, Logger, PluginRuntimeConfig } from "../src/types.js
 const CFG: PluginRuntimeConfig = {
   clawvaultUrl: "http://127.0.0.1:1",
   mode: "log",
+  localSanitize: true,
   extraPaths: [],
   extraExtensions: [],
   refreshIntervalSeconds: 30,

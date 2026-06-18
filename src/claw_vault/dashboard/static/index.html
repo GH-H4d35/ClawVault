@@ -131,7 +131,8 @@
                             <span class="w-3 h-3 bg-vault-500 rounded-full pulse-dot"></span>
                             <span class="text-sm font-semibold text-vault-400">Protected</span>
                         </div>
-                        <span class="text-xs text-gray-500">Proxy Port: <span id="monitor-proxy-port" class="text-gray-300 font-mono">8765</span></span>
+                        <span class="text-xs text-gray-500">Adapter: <span id="monitor-adapter-route" class="text-gray-300 font-mono">/v1/chat/completions</span> on <span id="monitor-adapter-port" class="text-gray-300 font-mono">8766</span></span>
+                        <span class="text-xs text-gray-500">Proxy: <span id="monitor-proxy-port" class="text-gray-300 font-mono">8765</span> compatibility mode</span>
                     </div>
                     <button onclick="refreshMonitor()" class="px-4 py-1.5 text-xs font-medium text-vault-400 bg-vault-500/10 hover:bg-vault-500/20 rounded-lg transition-colors flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -727,6 +728,10 @@ async function refreshMonitor() {
         document.getElementById('m-tool-call-count').textContent = (overview.tool_call_count || 0).toLocaleString();
         const portEl = document.getElementById('monitor-proxy-port');
         if (portEl && overview.proxy_port) portEl.textContent = overview.proxy_port;
+        const adapterRouteEl = document.getElementById('monitor-adapter-route');
+        if (adapterRouteEl && overview.adapter_route) adapterRouteEl.textContent = overview.adapter_route;
+        const adapterPortEl = document.getElementById('monitor-adapter-port');
+        if (adapterPortEl && overview.adapter_port) adapterPortEl.textContent = overview.adapter_port;
     }
 
     if (trends) {

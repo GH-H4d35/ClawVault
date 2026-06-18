@@ -19,6 +19,7 @@ from claw_vault.detector.engine import DetectionEngine, ScanResult
 from claw_vault.guard.action import Action, ActionResult
 from claw_vault.guard.rule_engine import RuleEngine
 from claw_vault.monitor.token_counter import TokenCounter
+from claw_vault.proxy.openai_sanitize_rewrite import rewrite_openai_chat_sanitize_command
 from claw_vault.proxy.traffic_logger import ProxyTrafficLogger
 from claw_vault.sanitizer.replacer import Sanitizer
 from claw_vault.sanitizer.restorer import Restorer
@@ -148,6 +149,43 @@ class ClawVaultAddon:
             body_size=len(body),
         )
 
+        original_body_for_log = received_body
+        skip_restore = False
+        command_rewrite = rewrite_openai_chat_sanitize_command(body)
+        if command_rewrite.action == "rewrite":
+            body = command_rewrite.body
+            original_body_for_log = command_rewrite.safe_original_body
+            skip_restore = True
+            self._set_request_body(flow, body)
+            logger.info("openclaw_sanitize_rewrite_applied", flow_id=flow_id)
+        elif command_rewrite.action in {"usage", "error"}:
+            safe_body = command_rewrite.safe_original_body
+            scan = command_rewrite.scan or ScanResult()
+            message = (
+                "Usage: @clawvault sanitize <text>"
+                if command_rewrite.action == "usage"
+                else "ClawVault could not sanitize this text locally."
+            )
+            self._pending_requests[flow_id] = {
+                "original_body": safe_body,
+                "forwarded_body": "",
+                "request_headers": dict(flow.request.headers),
+                "start_time": start_time,
+                "model": self.token_counter.detect_model_from_url(flow.request.pretty_url),
+                "agent_id": None,
+                "session_id": None,
+                "agent_config": {},
+                "action": "block",
+                "risk_level": scan.threat_level.value if scan.has_threats else None,
+                "risk_score": scan.max_risk_score if scan.has_threats else None,
+                "response_logged": False,
+                "synthetic_response": False,
+                "sensitive_original_suppressed": True,
+            }
+            flow.response = self._make_block_response(flow, safe_body, message)
+            self._log_synthetic_response_event(flow, flow_id)
+            return
+
         # Extract only user message content for scanning (skip system prompts)
         scan_text = self._extract_user_content(body)
         agent_id = self._extract_agent_name(body)
@@ -189,7 +227,7 @@ class ClawVaultAddon:
                     user_content=scan_text,
                 )
                 self._pending_requests[flow_id] = {
-                    "original_body": received_body,
+                    "original_body": original_body_for_log,
                     "forwarded_body": body,
                     "request_headers": dict(flow.request.headers),
                     "start_time": start_time,
@@ -212,7 +250,7 @@ class ClawVaultAddon:
         agent_config = _get_agent_config(agent_id)
 
         self._pending_requests[flow_id] = {
-            "original_body": received_body,
+            "original_body": original_body_for_log,
             "forwarded_body": body,
             "request_headers": dict(flow.request.headers),
             "start_time": start_time,
@@ -225,6 +263,8 @@ class ClawVaultAddon:
             "risk_score": None,
             "response_logged": False,
             "synthetic_response": False,
+            "skip_restore": skip_restore,
+            "sensitive_original_suppressed": command_rewrite.action == "rewrite",
         }
 
         # Skip detection if agent is disabled
@@ -257,7 +297,7 @@ class ClawVaultAddon:
         pending = self._pending_requests[flow_id]
         pending["scan"] = scan
         pending["forwarded_body"] = body
-        pending["action"] = action_result.action.value
+        pending["action"] = "sanitize" if skip_restore else action_result.action.value
         pending["risk_level"] = scan.threat_level.value
         pending["risk_score"] = scan.max_risk_score
 
@@ -266,19 +306,8 @@ class ClawVaultAddon:
             self._blocked_contents.add(scan_text)
             # Build human-readable detail lines
             detail_lines = self._format_block_details(scan, action_result)
-            flow.response = http.Response.make(
-                403,
-                json.dumps(
-                    {
-                        "error": {
-                            "message": f"[ClawVault] {action_result.reason}\n\n{detail_lines}",
-                            "type": "claw_vault_block",
-                            "code": "content_blocked",
-                        },
-                    }
-                ),
-                {"Content-Type": "application/json"},
-            )
+            block_message = f"[ClawVault] {action_result.reason}\n\n{detail_lines}"
+            flow.response = self._make_block_response(flow, body, block_message)
             logger.warning(
                 "request_blocked",
                 flow_id=flow_id,
@@ -365,7 +394,7 @@ class ClawVaultAddon:
             "request_intercepted",
             flow_id=flow_id,
             url=flow.request.pretty_url,
-            action=action_result.action.value,
+            action="sanitize" if skip_restore else action_result.action.value,
             latency_ms=f"{latency_ms:.1f}",
         )
 
@@ -386,9 +415,9 @@ class ClawVaultAddon:
 
         body = raw_received_body
 
-        # Restore sanitized placeholders
+        # Restore sanitizer placeholders unless this request is explicitly one-way sanitize.
         mapping = self.sanitizer.mapping
-        if mapping:
+        if mapping and not (req_info and req_info.get("skip_restore")):
             restored = self.restorer.restore(body, mapping)
             if restored != body:
                 self._set_response_body(flow, restored)
@@ -553,6 +582,92 @@ class ClawVaultAddon:
                     lines.append(f"  • {d}")
         return "\n".join(lines)
 
+    def _make_block_response(
+        self, flow: http.HTTPFlow, request_body: str, message: str
+    ) -> http.Response:
+        data = self._parse_json_object(request_body)
+        if not self._should_use_openclaw_tui_block_response(flow, data):
+            return http.Response.make(
+                403,
+                json.dumps(
+                    {
+                        "error": {
+                            "message": message,
+                            "type": "claw_vault_block",
+                            "code": "content_blocked",
+                        },
+                    }
+                ),
+                {"Content-Type": "application/json"},
+            )
+
+        if self._request_wants_stream(data):
+            return self._make_llm_sse_response(request_body, message)
+        return self._make_llm_response(request_body, message)
+
+    @staticmethod
+    def _parse_json_object(body: str) -> dict[str, Any] | None:
+        try:
+            data = json.loads(body)
+        except (json.JSONDecodeError, TypeError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _is_chat_completion_payload(data: dict[str, Any] | None) -> bool:
+        return isinstance(data, dict) and isinstance(data.get("messages"), list)
+
+    @staticmethod
+    def _request_wants_stream(data: dict[str, Any] | None) -> bool:
+        return isinstance(data, dict) and data.get("stream") is True
+
+    @classmethod
+    def _should_use_openclaw_tui_block_response(
+        cls, flow: http.HTTPFlow, data: dict[str, Any] | None
+    ) -> bool:
+        if not cls._is_chat_completion_payload(data):
+            return False
+
+        headers = getattr(flow.request, "headers", {})
+        compat_header = str(headers.get("X-ClawVault-Block-Response", "")).lower()
+        if compat_header in {"openai", "openai-compatible", "openai_chat", "openai-chat"}:
+            return True
+
+        messages = data.get("messages", []) if isinstance(data, dict) else []
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("role")
+            content = msg.get("content")
+            if role == "system" and cls._contains_openclaw_system_prompt(content):
+                return True
+            if cls._contains_openclaw_tui_metadata(content):
+                return True
+        return False
+
+    @staticmethod
+    def _contains_openclaw_system_prompt(content: Any) -> bool:
+        if not isinstance(content, str):
+            return False
+        lowered = content.lower()
+        return "running inside openclaw" in lowered or (
+            "openclaw" in lowered and "tooling" in lowered
+        )
+
+    @staticmethod
+    def _contains_openclaw_tui_metadata(content: Any) -> bool:
+        if isinstance(content, str):
+            lowered = content.lower()
+            return "sender (untrusted metadata)" in lowered and "openclaw-tui" in lowered
+        if isinstance(content, list):
+            for item in content:
+                if not isinstance(item, dict):
+                    continue
+                text = item.get("text")
+                if isinstance(text, str) and ClawVaultAddon._contains_openclaw_tui_metadata(text):
+                    return True
+        return False
+
     @staticmethod
     def _make_llm_response(request_body: str, message: str) -> http.Response:
         """Create a fake LLM-style response so the warning appears as an
@@ -583,6 +698,49 @@ class ClawVaultAddon:
             200,
             json.dumps(resp_body, ensure_ascii=False),
             {"Content-Type": "application/json"},
+        )
+
+    @staticmethod
+    def _make_llm_sse_response(request_body: str, message: str) -> http.Response:
+        """Create an OpenAI-compatible streaming response for blocked TUI requests."""
+        try:
+            data = json.loads(request_body)
+            model = data.get("model", "clawvault")
+        except Exception:
+            model = "clawvault"
+
+        first_chunk = {
+            "id": f"clawvault-{uuid.uuid4().hex[:8]}",
+            "object": "chat.completion.chunk",
+            "model": model,
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": message},
+                    "index": 0,
+                }
+            ],
+        }
+        stop_chunk = {
+            "choices": [
+                {
+                    "delta": {},
+                    "finish_reason": "stop",
+                    "index": 0,
+                }
+            ]
+        }
+        sse_body = (
+            f"data: {json.dumps(first_chunk, ensure_ascii=False)}\n\n"
+            f"data: {json.dumps(stop_chunk, ensure_ascii=False)}\n\n"
+            "data: [DONE]\n\n"
+        )
+        return http.Response.make(
+            200,
+            sse_body,
+            {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+            },
         )
 
     # ── File Monitor Enforcement ──

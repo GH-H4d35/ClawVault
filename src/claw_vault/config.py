@@ -83,6 +83,12 @@ class DashboardConfig(BaseModel):
     port: int = 8766
 
 
+class ProviderAdapterConfig(BaseModel):
+    enabled: bool = True
+    upstream_base_url: str = "https://api.openai.com/v1"
+    request_timeout_seconds: float = 60.0
+
+
 class CloudConfig(BaseModel):
     enabled: bool = False
     aiscc_api_url: str = "https://api.aiscc.io/v1/audit"
@@ -221,6 +227,7 @@ class Settings(BaseSettings):
     monitor: MonitorConfig = Field(default_factory=MonitorConfig)
     audit: AuditConfig = Field(default_factory=AuditConfig)
     dashboard: DashboardConfig = Field(default_factory=DashboardConfig)
+    provider_adapter: ProviderAdapterConfig = Field(default_factory=ProviderAdapterConfig)
     cloud: CloudConfig = Field(default_factory=CloudConfig)
     openclaw: OpenClawConfig = Field(default_factory=OpenClawConfig)
     file_monitor: FileMonitorConfig = Field(default_factory=FileMonitorConfig)
@@ -252,6 +259,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
         "monitor": settings.monitor.model_dump(mode="json"),
         "audit": settings.audit.model_dump(mode="json"),
         "dashboard": settings.dashboard.model_dump(mode="json"),
+        "provider_adapter": settings.provider_adapter.model_dump(mode="json"),
         "cloud": settings.cloud.model_dump(mode="json"),
         "openclaw": settings.openclaw.model_dump(mode="json"),
         "file_monitor": settings.file_monitor.model_dump(mode="json"),

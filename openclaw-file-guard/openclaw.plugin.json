@@ -21,6 +21,11 @@
         "description": "log = report only; strict = block offending tool calls",
         "default": "log"
       },
+      "localSanitize": {
+        "type": "boolean",
+        "description": "Handle @clawvault sanitize intents locally before model submission",
+        "default": true
+      },
       "extraPaths": {
         "type": "array",
         "items": { "type": "string" },

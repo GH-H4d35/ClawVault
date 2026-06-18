@@ -59,9 +59,14 @@ doc/develop
 
 # AI-related files
 CLAUDE.md
+AGENTS.md
 HANDOFF.md
 ISSUES.md
 .clawhub/push.sh
+
+# Local release notes / handoff drafts
+CHANGELOG.md
+CHANGELOG.zh-CN.md
 
 # Local push / command history / publishing cache
 push.sh

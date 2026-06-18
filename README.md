@@ -203,6 +203,32 @@ monitor:
   daily_token_budget: 50000
 ```
 
+### OpenClaw OpenAI-Compatible Adapter
+
+For OpenClaw deployments, prefer the direct OpenAI-compatible adapter over a transparent proxy when you want `@clawvault sanitize` prompts to continue to the model after local sanitization.
+
+OpenClaw provider configuration:
+
+```text
+base_url = http://127.0.0.1:8766/v1
+```
+
+Keep the existing OpenClaw model and provider API key unchanged. Configure ClawVault to forward adapter traffic to the real upstream provider:
+
+```yaml
+# ~/.ClawVault/config.yaml
+provider_adapter:
+  enabled: true
+  upstream_base_url: https://yunwu.ai/v1
+  request_timeout_seconds: 60.0
+```
+
+Do not set `provider_adapter.upstream_base_url` to `http://127.0.0.1:8766/v1`; that would route ClawVault back into itself.
+
+When the latest OpenAI-compatible user message is a valid command such as `@clawvault sanitize email=alice@example.test`, ClawVault locally rewrites the provider request so the upstream model sees only the sanitized body, for example `email=[EMAIL_1]`. The upstream provider does not see the original sensitive value or the `@clawvault` control prefix. This flow is sanitize-only: placeholders in the model response are not restored.
+
+Security boundary: sensitive data does not leave the local machine and does not enter the upstream model/provider. Because this mode does not modify OpenClaw runtime storage, local OpenClaw TUI, session, or transcript files may still contain the user's original local input.
+
 ## 📊 Development Progress
 
 | Capability Module | Status | Notes |

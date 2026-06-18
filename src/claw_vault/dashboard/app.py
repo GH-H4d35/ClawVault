@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from claw_vault import __version__
 from claw_vault.dashboard.api import router as api_router
+from claw_vault.proxy.provider_adapter import router as provider_adapter_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix="/api")
+    app.include_router(provider_adapter_router)
 
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

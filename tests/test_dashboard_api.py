@@ -111,6 +111,23 @@ async def test_receive_external_event_route_surfaces_event_in_feed(
     assert dashboard_api._scan_history[0]["source"] == "plugin"
 
 
+@pytest.mark.asyncio
+async def test_openclaw_sanitize_endpoint_returns_sanitized_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dashboard_api, "_scan_history", [])
+    monkeypatch.setattr(dashboard_api, "_analysis_log", [])
+
+    result = await dashboard_api.sanitize_openclaw_prompt(
+        dashboard_api.OpenClawSanitizePayload(text="email=alice@example.com")
+    )
+
+    assert result.success is True
+    assert result.sanitized == "email=[EMAIL_1]"
+    assert len(dashboard_api._scan_history) == 1
+    assert dashboard_api._scan_history[0]["source"] == "openclaw-local-sanitize"
+
+
 def test_push_proxy_event_records_agent_and_session_ids(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dashboard_api, "_scan_history", [])
 
@@ -239,6 +256,69 @@ async def test_update_openclaw_session_redaction_config_updates_runtime_service(
     assert result["sessions_root"] == "/tmp/openclaw-agents"
     assert result["watch_roots"] == ["/tmp/openclaw-agents", "/root/.openclaw/agents"]
     assert result["last_watch_error"] == "watch loop failed"
+
+
+@pytest.mark.asyncio
+async def test_agent_integrations_lists_openclaw_and_claude_code() -> None:
+    from claw_vault.proxy.server import ProxyServer
+
+    settings = Settings()
+    proxy = ProxyServer(settings)
+    dashboard_api.set_dependencies(
+        audit_store=None,
+        token_counter=None,
+        budget_manager=None,
+        settings=settings,
+        rule_engine=proxy.rule_engine,
+        openclaw_service=proxy.openclaw_service,
+        proxy_server=proxy,
+    )
+
+    result = await dashboard_api.get_agent_integrations()
+    statuses = {status["key"]: status for status in result}
+
+    assert statuses["openclaw"]["enabled"] is True
+    assert statuses["openclaw"]["capabilities"] == {"session_redaction": True}
+    assert statuses["claude_code"]["name"] == "Claude Code"
+    assert statuses["claude_code"]["enabled"] is False
+    assert statuses["claude_code"]["capabilities"] == {"session_redaction": False}
+    assert set(proxy.session_redaction_services) == {"openclaw"}
+
+
+@pytest.mark.asyncio
+async def test_generic_openclaw_session_redaction_matches_legacy_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    settings.openclaw.session_redaction.enabled = False
+    service = _DummyOpenClawService()
+    monkeypatch.setattr(dashboard_api, "_settings", settings)
+    monkeypatch.setattr(dashboard_api, "_openclaw_service", service)
+
+    legacy = await dashboard_api.get_openclaw_session_redaction_config()
+    generic = await dashboard_api.get_openclaw_integration_session_redaction_config()
+
+    assert generic == legacy
+
+
+@pytest.mark.asyncio
+async def test_generic_openclaw_session_redaction_update_matches_legacy_behavior(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings()
+    settings.openclaw.session_redaction.enabled = False
+    service = _DummyOpenClawService()
+    monkeypatch.setattr(dashboard_api, "_settings", settings)
+    monkeypatch.setattr(dashboard_api, "_openclaw_service", service)
+    monkeypatch.setattr(dashboard_api, "_persist_config", lambda: None)
+
+    result = await dashboard_api.update_openclaw_integration_session_redaction_config(
+        dashboard_api.OpenClawSessionRedactionUpdate(enabled=True)
+    )
+
+    assert settings.openclaw.session_redaction.enabled is True
+    assert service.enabled_updates == [True]
+    assert result == await dashboard_api.get_openclaw_session_redaction_config()
 
 
 def test_persist_config_writes_safe_yaml_for_path_values(
