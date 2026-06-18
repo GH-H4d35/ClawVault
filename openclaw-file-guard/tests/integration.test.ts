@@ -4,6 +4,10 @@ import { once } from "node:events";
 import register from "../index.js";
 import type { AgentContext, OpenClawPluginApi } from "../src/types.js";
 
+const CN_SANITIZE_INFO = "\u8131\u654f\u4fe1\u606f";
+const CN_WHAT_IS_SANITIZE = "\u4ec0\u4e48\u662f\u8131\u654f\uff1f";
+const CN_MY_EMAIL_IS = "\u6211\u7684\u90ae\u7bb1\u662f";
+
 interface FakeClawVaultState {
   fileMonitorConfig: {
     watch_paths: string[];
@@ -39,6 +43,21 @@ function startFakeClawVault(state: FakeClawVaultState): Promise<{
           }
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify({ ok: true, event_id: "test" }));
+        });
+        return;
+      }
+      if (req.method === "POST" && req.url.startsWith("/api/openclaw/sanitize")) {
+        let body = "";
+        req.on("data", (chunk) => (body += chunk.toString()));
+        req.on("end", () => {
+          const payload = JSON.parse(body) as { text: string };
+          res.setHeader("Content-Type", "application/json");
+          res.end(
+            JSON.stringify({
+              success: true,
+              sanitized: payload.text.replace("alice@example.com", "[EMAIL_1]"),
+            }),
+          );
         });
         return;
       }
@@ -110,6 +129,41 @@ describe("end-to-end: plugin ↔ ClawVault", () => {
 
   afterAll(async () => {
     await srv.close();
+  });
+
+  it("lets valid local sanitize intent continue to provider chain", async () => {
+    const { api, handlers, logs } = makeApi({
+      clawvaultUrl: srv.url,
+      mode: "strict",
+      refreshIntervalSeconds: 60,
+      requestTimeoutMs: 1000,
+    });
+    await register(api);
+
+    const result = await handlers.get("before_agent_run")!(
+      { prompt: `@clawvault ${CN_SANITIZE_INFO} ${CN_MY_EMAIL_IS} alice@example.com` },
+      { agentId: "agent-1", sessionId: "session-1" },
+    );
+
+    expect(result).toBeUndefined();
+    expect(JSON.stringify(logs)).not.toContain("alice@example.com");
+  });
+
+  it("does not handle non-sanitize questions locally", async () => {
+    const { api, handlers } = makeApi({
+      clawvaultUrl: srv.url,
+      mode: "strict",
+      refreshIntervalSeconds: 60,
+      requestTimeoutMs: 1000,
+    });
+    await register(api);
+
+    const result = await handlers.get("before_agent_run")!(
+      { prompt: `@clawvault ${CN_WHAT_IS_SANITIZE}` },
+      {},
+    );
+
+    expect(result).toBeUndefined();
   });
 
   it("C1: strict mode blocks sensitive read and posts event", async () => {

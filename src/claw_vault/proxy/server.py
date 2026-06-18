@@ -9,10 +9,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 
+from claw_vault.agents.registry import AgentIntegrationRegistry
+from claw_vault.claude_code.integration import ClaudeCodeIntegration
 from claw_vault.config import Settings
 from claw_vault.detector.engine import DetectionEngine, ScanResult
 from claw_vault.guard.rule_engine import RuleEngine
 from claw_vault.monitor.token_counter import TokenCounter
+from claw_vault.openclaw.integration import OpenClawIntegration
 from claw_vault.openclaw.service import OpenClawSessionRedactionService
 from claw_vault.proxy.interceptor import ClawVaultAddon
 from claw_vault.proxy.traffic_logger import ProxyTrafficLogger
@@ -42,8 +45,11 @@ class ProxyServer:
             mode=settings.guard.mode,
             auto_sanitize=settings.guard.auto_sanitize,
         )
-        self.openclaw_service = OpenClawSessionRedactionService(
-            settings.openclaw.session_redaction,
+        self.agent_registry = AgentIntegrationRegistry()
+        self.agent_registry.register(OpenClawIntegration())
+        self.agent_registry.register(ClaudeCodeIntegration())
+        self.session_redaction_services = self.agent_registry.create_session_redaction_services(
+            settings,
             global_detection_config={
                 "api_keys": settings.detection.api_keys,
                 "aws_credentials": settings.detection.aws_credentials,
@@ -59,6 +65,10 @@ class ProxyServer:
                 "dangerous_commands": settings.detection.dangerous_commands,
                 "prompt_injection": settings.detection.prompt_injection,
             },
+        )
+        self.openclaw_service = cast(
+            OpenClawSessionRedactionService,
+            self.session_redaction_services["openclaw"],
         )
         self.traffic_logger = ProxyTrafficLogger(
             path=settings.proxy.traffic_log_path,
@@ -97,7 +107,8 @@ class ProxyServer:
 
     def start(self) -> None:
         """Start the proxy server in a background thread."""
-        self.openclaw_service.start()
+        for service in self.session_redaction_services.values():
+            service.start()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         logger.info(
@@ -139,7 +150,8 @@ class ProxyServer:
             cast(Any, self._master).shutdown()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
-        self.openclaw_service.stop()
+        for service in self.session_redaction_services.values():
+            service.stop()
         logger.info("proxy_stopped")
 
     # ── File Monitor Enforcement Pass-through ──

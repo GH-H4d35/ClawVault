@@ -59,6 +59,39 @@ doc/develop
 
 # AI-related files
 CLAUDE.md
+AGENTS.md
 HANDOFF.md
 ISSUES.md
+.clawhub/push.sh
+
+# Local release notes / handoff drafts
+CHANGELOG.md
+CHANGELOG.zh-CN.md
+
+# Local push / command history / publishing cache
+push.sh
+history.txt
 .clawhub/
+**/.clawhub/
+
+# Local sensitive config
+.env
+.env.*
+*.token
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+config.yaml
+config.local.yaml
+*.local.yaml
+
+# Local Python env
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Local ClawVault env
+.clawvault-env/

@@ -3,6 +3,7 @@ export type GuardMode = "log" | "strict";
 export interface PluginRuntimeConfig {
   clawvaultUrl: string;
   mode: GuardMode;
+  localSanitize: boolean;
   extraPaths: string[];
   extraExtensions: string[];
   refreshIntervalSeconds: number;
@@ -24,7 +25,7 @@ export interface ExternalEvent {
   source: string;
   category: string;
   threat_level: "low" | "medium" | "high" | "critical";
-  action: "log" | "block";
+  action: "log" | "block" | "sanitize";
   tool_name: string;
   file_path: string;
   matched_rule: string;
@@ -47,6 +48,16 @@ export interface ToolCallEvent {
   params: Record<string, unknown>;
 }
 
+export interface AgentRunEvent {
+  prompt?: string;
+}
+
+export interface AgentRunBlockResult {
+  outcome: "block";
+  reason: string;
+  message: string;
+}
+
 export interface AgentContext {
   agentId?: string;
   sessionKey?: string;
@@ -65,8 +76,14 @@ export interface OpenClawPluginApi {
       event: unknown,
       ctx: AgentContext,
     ) =>
-      | Promise<void | { block: boolean; blockReason: string }>
+      | Promise<
+          | void
+          | { block: boolean; blockReason: string }
+          | AgentRunBlockResult
+        >
       | void
-      | { block: boolean; blockReason: string },
+      | { block: boolean; blockReason: string }
+      | AgentRunBlockResult,
+    opts?: { priority?: number; timeoutMs?: number },
   ): void;
 }

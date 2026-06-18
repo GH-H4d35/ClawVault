@@ -1,8 +1,10 @@
 import { ConfigClient } from "./src/config-client.js";
 import { Reporter } from "./src/reporter.js";
+import { parseSanitizeIntent } from "./src/sanitize-intent.js";
 import { detect } from "./src/path-detector.js";
 import type {
   AgentContext,
+  AgentRunEvent,
   ExternalEvent,
   GuardMode,
   OpenClawPluginApi,
@@ -24,6 +26,7 @@ function readConfig(api: OpenClawPluginApi): PluginRuntimeConfig {
   return {
     clawvaultUrl: get("clawvaultUrl", "http://127.0.0.1:8766"),
     mode: get<GuardMode>("mode", "log"),
+    localSanitize: get("localSanitize", true),
     extraPaths: get<string[]>("extraPaths", []),
     extraExtensions: get<string[]>("extraExtensions", [
       ".pem",
@@ -52,6 +55,28 @@ export default function register(api: OpenClawPluginApi): void {
     configClient.start();
     logger.info("[file-guard] ready");
   });
+
+  api.on(
+    "before_agent_run",
+    async (rawEvent: unknown, ctx: AgentContext) => {
+      if (!runtimeCfg.localSanitize) return;
+      const event = rawEvent as AgentRunEvent;
+      const prompt = typeof event?.prompt === "string" ? event.prompt : "";
+      const intent = parseSanitizeIntent(prompt);
+      if (intent.action === "none") return;
+
+      if (intent.action === "usage") {
+        return {
+          outcome: "block" as const,
+          reason: "clawvault_sanitize_usage",
+          message: "Usage: @clawvault sanitize <text>",
+        };
+      }
+
+      return undefined;
+    },
+    { priority: 100, timeoutMs: Math.max(runtimeCfg.requestTimeoutMs + 500, 2500) },
+  );
 
   api.on(
     "before_tool_call",

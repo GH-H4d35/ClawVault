@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -109,6 +110,7 @@ async def _run_services(settings: Settings):
     from claw_vault.local_scan.scanner import LocalScanner
     from claw_vault.local_scan.scheduler import ScanScheduler
     from claw_vault.monitor.budget import BudgetManager
+    from claw_vault.proxy.provider_adapter import configure_provider_adapter
     from claw_vault.proxy.server import ProxyServer
     from claw_vault.vault.file_manager import FileManager
 
@@ -203,6 +205,7 @@ async def _run_services(settings: Settings):
 
     # Start dashboard
     if settings.dashboard.enabled:
+        configure_provider_adapter(settings.provider_adapter)
         set_dependencies(
             audit_store,
             token_counter,
@@ -1153,17 +1156,32 @@ def skill_invoke(
     tool_name: str = typer.Argument(help="Tool name (e.g. sanitize_message)"),
     text: str = typer.Option("", help="Text input for the tool"),
     file_path: str = typer.Option("", help="File path input for the tool"),
+    stdin: bool = typer.Option(False, "--stdin", help="Read text input from stdin"),
+    json_output: bool = typer.Option(False, "--json", help="Output result data as JSON"),
 ):
     """Invoke a specific tool on a Skill."""
     registry = _get_registry()
 
     kwargs = {}
-    if text:
+    if stdin:
+        kwargs["text"] = sys.stdin.read()
+    elif text:
         kwargs["text"] = text
     if file_path:
         kwargs["file_path"] = file_path
 
     result = registry.invoke(skill_name, tool_name, **kwargs)
+
+    if json_output:
+        import json
+
+        payload = {"success": result.success, "message": result.message}
+        if result.data:
+            payload.update(result.data)
+        if result.warnings:
+            payload["warnings"] = result.warnings
+        console.print(json.dumps(payload, indent=2, default=str, ensure_ascii=False))
+        raise typer.Exit(0 if result.success else 1)
 
     if result.success:
         console.print(f"[green]✓[/green] {result.message}")

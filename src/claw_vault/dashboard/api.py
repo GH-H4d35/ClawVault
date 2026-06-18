@@ -279,6 +279,16 @@ class ExternalEventPayload(BaseModel):
     risk_score: float = Field(default=5.0)
 
 
+class OpenClawSanitizePayload(BaseModel):
+    text: str
+
+
+class OpenClawSanitizeResponse(BaseModel):
+    success: bool
+    sanitized: str | None = None
+    error: str | None = None
+
+
 @router.get("/health")
 async def health():
     openclaw_session_redaction = {
@@ -742,9 +752,19 @@ async def update_guard_config(config: dict):
     return await get_guard_config()
 
 
-@router.get("/config/openclaw/session-redaction")
-async def get_openclaw_session_redaction_config():
-    """Get current OpenClaw session transcript redaction settings."""
+def _get_agent_integration_statuses() -> list[dict[str, Any]]:
+    """Return statuses for registered agent integrations."""
+    registry = getattr(_proxy_server, "agent_registry", None)
+    if registry is not None and hasattr(registry, "statuses"):
+        return registry.statuses()
+
+    from claw_vault.openclaw.integration import OpenClawIntegration
+
+    return [OpenClawIntegration().status()]
+
+
+def _get_openclaw_session_redaction_payload() -> dict[str, Any]:
+    """Build the OpenClaw session redaction payload used by old and new APIs."""
     if _settings:
         payload = _settings.openclaw.session_redaction.model_dump(mode="json")
     else:
@@ -776,15 +796,46 @@ async def get_openclaw_session_redaction_config():
     return payload
 
 
+def _update_openclaw_session_redaction(enabled: bool) -> dict[str, Any]:
+    """Update OpenClaw redaction state used by old and new APIs."""
+    if _settings:
+        _settings.openclaw.session_redaction.enabled = enabled
+    if _openclaw_service and hasattr(_openclaw_service, "set_enabled"):
+        _openclaw_service.set_enabled(enabled)
+    _persist_config()
+    return _get_openclaw_session_redaction_payload()
+
+
+@router.get("/agents/integrations")
+async def get_agent_integrations():
+    """List registered agent integrations."""
+    return _get_agent_integration_statuses()
+
+
+@router.get("/agents/integrations/openclaw/session-redaction")
+async def get_openclaw_integration_session_redaction_config():
+    """Get OpenClaw redaction settings through the generic integration API."""
+    return _get_openclaw_session_redaction_payload()
+
+
+@router.post("/agents/integrations/openclaw/session-redaction")
+async def update_openclaw_integration_session_redaction_config(
+    payload: OpenClawSessionRedactionUpdate,
+):
+    """Update OpenClaw redaction settings through the generic integration API."""
+    return _update_openclaw_session_redaction(payload.enabled)
+
+
+@router.get("/config/openclaw/session-redaction")
+async def get_openclaw_session_redaction_config():
+    """Get current OpenClaw session transcript redaction settings."""
+    return _get_openclaw_session_redaction_payload()
+
+
 @router.post("/config/openclaw/session-redaction")
 async def update_openclaw_session_redaction_config(payload: OpenClawSessionRedactionUpdate):
     """Update OpenClaw session transcript redaction settings."""
-    if _settings:
-        _settings.openclaw.session_redaction.enabled = payload.enabled
-    if _openclaw_service and hasattr(_openclaw_service, "set_enabled"):
-        _openclaw_service.set_enabled(payload.enabled)
-    _persist_config()
-    return await get_openclaw_session_redaction_config()
+    return _update_openclaw_session_redaction(payload.enabled)
 
 
 def _parse_request_metadata(request_body: str | None) -> tuple[list[dict], int]:
@@ -1114,6 +1165,7 @@ async def get_monitor_overview():
         }
 
     proxy_port = _settings.proxy.port if _settings else 8765
+    dashboard_port = _settings.dashboard.port if _settings else 8766
 
     return {
         "scan_count": len(all_events),
@@ -1128,6 +1180,8 @@ async def get_monitor_overview():
         "token_output": token_data["output"],
         "tool_call_count": tool_calls,
         "proxy_port": proxy_port,
+        "adapter_route": "/v1/chat/completions",
+        "adapter_port": dashboard_port,
     }
 
 
@@ -1463,6 +1517,36 @@ async def receive_external_event(payload: ExternalEventPayload) -> dict:
     events feed and is tagged by `source`.
     """
     return push_external_event(payload)
+
+
+@router.post("/openclaw/sanitize", response_model=OpenClawSanitizeResponse)
+async def sanitize_openclaw_prompt(payload: OpenClawSanitizePayload) -> OpenClawSanitizeResponse:
+    """Sanitize OpenClaw prompt text locally without forwarding it upstream."""
+    if not payload.text:
+        return OpenClawSanitizeResponse(success=False, error="sanitize_text_required")
+
+    from claw_vault.detector.engine import DetectionEngine
+    from claw_vault.sanitizer.replacer import Sanitizer
+
+    result = DetectionEngine().scan_full(payload.text)
+    if not result.sensitive:
+        sanitized = payload.text
+    else:
+        sanitized = Sanitizer().sanitize(payload.text, result.sensitive)
+
+    push_external_event(
+        ExternalEventPayload(
+            source="openclaw-local-sanitize",
+            category="prompt_sanitized",
+            threat_level=result.threat_level.value if result.has_threats else "low",
+            action="sanitize",
+            tool_name="before_agent_run",
+            matched_rule="local-sanitize-intent",
+            message="OpenClaw sanitize intent handled locally before provider submission",
+            risk_score=float(result.max_risk_score if result.has_threats else 0.0),
+        )
+    )
+    return OpenClawSanitizeResponse(success=True, sanitized=sanitized)
 
 
 # --------------- File Monitor Config ---------------

@@ -90,6 +90,43 @@ var Reporter = class {
   }
 };
 
+// src/sanitize-intent.ts
+var SANITIZE_PATTERNS = [
+  /^(?:\u8bf7)?(?:\u5e2e\u6211)?(?:\u8131\u654f\u4fe1\u606f|\u654f\u611f\u4fe1\u606f\u8131\u654f|\u4fe1\u606f\u8131\u654f|\u8131\u654f)[\uff1a:\s]+(?<text>[\s\S]+)$/u,
+  /^(?:sanitize|redact|mask)[\uff1a:\s]+(?<text>[\s\S]+)$/iu
+];
+var SANITIZE_USAGE_TERMS = /* @__PURE__ */ new Set([
+  "\u8131\u654F",
+  "\u8131\u654F\u4FE1\u606F",
+  "\u654F\u611F\u4FE1\u606F\u8131\u654F",
+  "\u4FE1\u606F\u8131\u654F",
+  "sanitize",
+  "redact",
+  "mask"
+]);
+var SANITIZE_QUESTION_RE = /(?:\u4ec0\u4e48\u662f|\u662f\u4ec0\u4e48\u610f\u601d|what is|explain|\u4ecb\u7ecd).*(?:\u8131\u654f|sanitize|redact|mask)/iu;
+function stripTimestampPrefix(text) {
+  return text.replace(/^\[[^\]]{1,80}\]\s*/u, "");
+}
+function parseSanitizeIntent(prompt) {
+  const text = stripTimestampPrefix(prompt.trim());
+  if (!text) return { action: "none" };
+  const mentionPrefix = "@clawvault";
+  if (!text.toLowerCase().startsWith(mentionPrefix)) return { action: "none" };
+  const normalized = text.slice(mentionPrefix.length).trim();
+  if (!normalized) return { action: "none" };
+  if (SANITIZE_QUESTION_RE.test(normalized)) return { action: "none" };
+  if (SANITIZE_USAGE_TERMS.has(normalized.toLowerCase())) {
+    return { action: "usage" };
+  }
+  for (const pattern of SANITIZE_PATTERNS) {
+    const match = pattern.exec(normalized);
+    const payload = match?.groups?.text?.trim();
+    if (payload) return { action: "sanitize", text: payload };
+  }
+  return { action: "none" };
+}
+
 // src/path-detector.ts
 import * as path from "path";
 import os from "os";
@@ -239,6 +276,7 @@ function readConfig(api) {
   return {
     clawvaultUrl: get("clawvaultUrl", "http://127.0.0.1:8766"),
     mode: get("mode", "log"),
+    localSanitize: get("localSanitize", true),
     extraPaths: get("extraPaths", []),
     extraExtensions: get("extraExtensions", [
       ".pem",
@@ -263,6 +301,25 @@ function register(api) {
     configClient.start();
     logger.info("[file-guard] ready");
   });
+  api.on(
+    "before_agent_run",
+    async (rawEvent, ctx) => {
+      if (!runtimeCfg.localSanitize) return;
+      const event = rawEvent;
+      const prompt = typeof event?.prompt === "string" ? event.prompt : "";
+      const intent = parseSanitizeIntent(prompt);
+      if (intent.action === "none") return;
+      if (intent.action === "usage") {
+        return {
+          outcome: "block",
+          reason: "clawvault_sanitize_usage",
+          message: "Usage: @clawvault sanitize <text>"
+        };
+      }
+      return void 0;
+    },
+    { priority: 100, timeoutMs: Math.max(runtimeCfg.requestTimeoutMs + 500, 2500) }
+  );
   api.on(
     "before_tool_call",
     async (rawEvent, ctx) => {

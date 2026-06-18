@@ -14,6 +14,10 @@ from claw_vault.monitor.token_counter import TokenCounter
 from claw_vault.proxy.interceptor import ClawVaultAddon
 from claw_vault.proxy.traffic_logger import ProxyTrafficLogger
 
+CN_SANITIZE_INFO = "\u8131\u654f\u4fe1\u606f"
+CN_WHAT_IS_SANITIZE = "\u4ec0\u4e48\u662f\u8131\u654f\uff1f"
+CN_MY_EMAIL_IS = "\u6211\u7684\u90ae\u7bb1\u662f"
+
 
 @dataclass
 class _DummyMessage:
@@ -70,13 +74,13 @@ def test_proxy_traffic_logger_redacts_sensitive_headers_and_parses_json(tmp_path
         request={
             "method": "POST",
             "url": "https://api.openai.com/v1/chat/completions",
-            "headers": {"Authorization": "Bearer secret", "Content-Type": "application/json"},
+            "headers": {"Authorization": "Bearer email_value", "Content-Type": "application/json"},
             "body": '{"messages":[]}',
             "forwarded_body": '{"messages":[]}',
         },
         response={
             "status_code": 200,
-            "headers": {"Set-Cookie": "token=secret", "Content-Type": "application/json"},
+            "headers": {"Set-Cookie": "token=email_value", "Content-Type": "application/json"},
             "body": '{"ok":true}',
             "returned_body": '{"ok":true}',
         },
@@ -91,9 +95,10 @@ def test_proxy_traffic_logger_redacts_sensitive_headers_and_parses_json(tmp_path
 
 
 def test_decode_http_body_prefers_utf8_for_sse_without_charset() -> None:
-    content = 'data: {"choices":[{"delta":{"content":"你好"}}]}\n\n'.encode()
+    hello_text = "\u4f60\u597d"
+    content = f'data: {{"choices":[{{"delta":{{"content":"{hello_text}"}}}}]}}\n\n'.encode()
     decoded = ClawVaultAddon._decode_http_body(content, "text/event-stream")
-    assert "你好" in decoded
+    assert hello_text in decoded
 
 
 def test_addon_writes_single_combined_transaction_entry(
@@ -117,7 +122,7 @@ def test_addon_writes_single_combined_transaction_entry(
     flow = _DummyFlow(
         request=_DummyRequest(
             _text=request_body,
-            headers={"Authorization": "Bearer secret", "Content-Type": "application/json"},
+            headers={"Authorization": "Bearer email_value", "Content-Type": "application/json"},
         )
     )
 
@@ -168,7 +173,7 @@ def test_addon_aggregates_sse_response_before_logging(
     flow = _DummyFlow(
         request=_DummyRequest(
             _text=request_body,
-            headers={"Authorization": "Bearer secret", "Content-Type": "application/json"},
+            headers={"Authorization": "Bearer email_value", "Content-Type": "application/json"},
         )
     )
 
@@ -211,6 +216,274 @@ def test_addon_intercepts_openrouter_host(monkeypatch: pytest.MonkeyPatch) -> No
             pretty_url="https://openrouter.ai/api/v1/chat/completions",
             pretty_host="openrouter.ai",
             headers={"Content-Type": "application/json"},
+        )
+    )
+
+    addon.request(flow)
+
+    assert flow.response is not None
+    assert flow.response.status_code == 403
+
+
+def _openclaw_tui_message(content: str) -> str:
+    return (
+        'Sender (untrusted metadata):\n'
+        '```json\n'
+        '{"label":"openclaw-tui main"}\n'
+        '```\n\n'
+        f'{content}'
+    )
+
+
+def _openclaw_system_prompt() -> str:
+    return "You are a personal assistant running inside OpenClaw.\n## Tooling"
+
+
+
+
+def test_openclaw_clawvault_sanitize_rewrites_and_continues_without_logging_raw(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "claw_vault.proxy.interceptor._get_agent_config",
+        lambda agent_id: {"enabled": True, "guard_mode": "permissive", "auto_sanitize": False},
+    )
+
+    traffic_logger = ProxyTrafficLogger(tmp_path / "proxy_traffic.jsonl")
+    addon = ClawVaultAddon(
+        rule_engine=RuleEngine(mode="permissive", auto_sanitize=False),
+        token_counter=TokenCounter(),
+        intercept_hosts=["api.openai.com"],
+        traffic_logger=traffic_logger,
+    )
+    email_value = "alice@example.com"
+    request_body = json.dumps(
+        {
+            "model": "gpt-4o",
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": _openclaw_system_prompt()},
+                {
+                    "role": "user",
+                    "content": f"@clawvault {CN_SANITIZE_INFO} {CN_MY_EMAIL_IS} {email_value}",
+                },
+            ],
+        }
+    )
+    flow = _DummyFlow(
+        request=_DummyRequest(
+            _text=request_body,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+
+    addon.request(flow)
+
+    assert flow.response is None
+    forwarded = json.loads(flow.request.get_text())
+    assert forwarded["messages"][-1]["content"] == f"{CN_MY_EMAIL_IS} [EMAIL_1]"
+    assert email_value not in json.dumps(forwarded, ensure_ascii=False)
+
+    flow.response = _DummyResponse(
+        _text='{"id":"resp-1","choices":[{"message":{"content":"Use [EMAIL_1]"}}]}',
+        headers={"Content-Type": "application/json"},
+        status_code=200,
+    )
+    addon.response(flow)
+
+    assert "[EMAIL_1]" in flow.response.get_text()
+    entry_text = (tmp_path / "proxy_traffic.jsonl").read_text(encoding="utf-8")
+    assert email_value not in entry_text
+    entry = json.loads(entry_text)
+    assert entry["action"] == "sanitize"
+    assert entry["source"] == "upstream"
+    assert entry["request"]["body"]["messages"][-1]["content"] == f"{CN_MY_EMAIL_IS} [EMAIL_1]"
+    forwarded_content = entry["request"]["forwarded_body"]["messages"][-1]["content"]
+    assert forwarded_content == f"{CN_MY_EMAIL_IS} [EMAIL_1]"
+
+
+def test_openclaw_clawvault_sanitize_question_is_not_local_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "claw_vault.proxy.interceptor._get_agent_config",
+        lambda agent_id: {"enabled": True, "guard_mode": "permissive", "auto_sanitize": False},
+    )
+
+    addon = ClawVaultAddon(
+        rule_engine=RuleEngine(mode="permissive", auto_sanitize=False),
+        token_counter=TokenCounter(),
+        intercept_hosts=["api.openai.com"],
+    )
+    request_body = json.dumps(
+        {
+            "model": "gpt-4o",
+            "messages": [
+                {"role": "system", "content": _openclaw_system_prompt()},
+                {"role": "user", "content": f"@clawvault {CN_WHAT_IS_SANITIZE}"},
+            ],
+        }
+    )
+    flow = _DummyFlow(
+        request=_DummyRequest(
+            _text=request_body,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+
+    addon.request(flow)
+
+    assert flow.response is None
+
+def test_strict_block_openclaw_tui_non_stream_returns_chat_completion(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "claw_vault.proxy.interceptor._get_agent_config",
+        lambda agent_id: {"enabled": True, "guard_mode": "strict", "auto_sanitize": False},
+    )
+
+    traffic_logger = ProxyTrafficLogger(tmp_path / "proxy_traffic.jsonl")
+    addon = ClawVaultAddon(
+        rule_engine=RuleEngine(mode="strict", auto_sanitize=False),
+        token_counter=TokenCounter(),
+        intercept_hosts=["api.openai.com"],
+        traffic_logger=traffic_logger,
+    )
+    request_body = json.dumps(
+        {
+            "model": "gpt-4o",
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": _openclaw_system_prompt()},
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "password=Secret123"}],
+                },
+            ],
+        }
+    )
+    flow = _DummyFlow(
+        request=_DummyRequest(
+            _text=request_body,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+
+    addon.request(flow)
+
+    assert flow.response is not None
+    assert flow.response.status_code == 200
+    assert flow.response.headers["Content-Type"] == "application/json"
+    payload = json.loads(flow.response.get_text())
+    assert payload["object"] == "chat.completion"
+    content = payload["choices"][0]["message"]["content"]
+    assert "[ClawVault] Strict mode: threat blocked" in content
+    assert "Sensitive data detected" in content
+
+    entry = json.loads((tmp_path / "proxy_traffic.jsonl").read_text(encoding="utf-8"))
+    assert entry["action"] == "block"
+    assert entry["source"] == "synthetic"
+    assert entry["response"]["status_code"] == 200
+
+
+def test_strict_block_openclaw_tui_stream_returns_sse(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "claw_vault.proxy.interceptor._get_agent_config",
+        lambda agent_id: {"enabled": True, "guard_mode": "strict", "auto_sanitize": False},
+    )
+
+    addon = ClawVaultAddon(
+        rule_engine=RuleEngine(mode="strict", auto_sanitize=False),
+        token_counter=TokenCounter(),
+        intercept_hosts=["api.openai.com"],
+    )
+    request_body = json.dumps(
+        {
+            "model": "gpt-4o",
+            "stream": True,
+            "messages": [
+                {"role": "system", "content": _openclaw_system_prompt()},
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "password=Secret123"}],
+                },
+            ],
+        }
+    )
+    flow = _DummyFlow(
+        request=_DummyRequest(
+            _text=request_body,
+            headers={"Content-Type": "application/json"},
+        )
+    )
+
+    addon.request(flow)
+
+    assert flow.response is not None
+    assert flow.response.status_code == 200
+    assert flow.response.headers["Content-Type"].startswith("text/event-stream")
+    body = flow.response.get_text()
+    assert (
+        '"delta": {"role": "assistant", "content": "[ClawVault] Strict mode: threat blocked'
+        in body
+    )
+    assert '"delta": {}, "finish_reason": "stop", "index": 0' in body
+    assert "data: [DONE]" in body
+
+
+def test_strict_block_explicit_compat_header_returns_chat_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "claw_vault.proxy.interceptor._get_agent_config",
+        lambda agent_id: {"enabled": True, "guard_mode": "strict", "auto_sanitize": False},
+    )
+
+    addon = ClawVaultAddon(
+        rule_engine=RuleEngine(mode="strict", auto_sanitize=False),
+        token_counter=TokenCounter(),
+        intercept_hosts=["api.openai.com"],
+    )
+    request_body = json.dumps(
+        {"model": "gpt-4o", "messages": [{"role": "user", "content": "password=Secret123"}]}
+    )
+    flow = _DummyFlow(
+        request=_DummyRequest(
+            _text=request_body,
+            headers={
+                "Content-Type": "application/json",
+                "X-ClawVault-Block-Response": "openai-compatible",
+            },
+        )
+    )
+
+    addon.request(flow)
+
+    assert flow.response is not None
+    assert flow.response.status_code == 200
+    payload = json.loads(flow.response.get_text())
+    assert "[ClawVault] Strict mode: threat blocked" in payload["choices"][0]["message"]["content"]
+
+
+def test_strict_block_non_chat_request_stays_403(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "claw_vault.proxy.interceptor._get_agent_config",
+        lambda agent_id: {"enabled": True, "guard_mode": "strict", "auto_sanitize": False},
+    )
+
+    addon = ClawVaultAddon(
+        rule_engine=RuleEngine(mode="strict", auto_sanitize=False),
+        token_counter=TokenCounter(),
+        intercept_hosts=["api.openai.com"],
+    )
+    flow = _DummyFlow(
+        request=_DummyRequest(
+            _text=json.dumps({"prompt": "password=Secret123"}),
+            headers={
+                "Content-Type": "application/json",
+                "X-ClawVault-Block-Response": "openai-compatible",
+            },
         )
     )
 
