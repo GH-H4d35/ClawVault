@@ -219,7 +219,7 @@ Keep the existing OpenClaw model and provider API key unchanged. Configure ClawV
 # ~/.ClawVault/config.yaml
 provider_adapter:
   enabled: true
-  upstream_base_url: https://yunwu.ai/v1
+  upstream_base_url: https://api.example.com/v1
   request_timeout_seconds: 60.0
 ```
 
